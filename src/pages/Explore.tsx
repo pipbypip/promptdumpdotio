@@ -1,4 +1,5 @@
-import { motion } from 'framer-motion'
+import React from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
 import { BookOpen, Edit, Share2, Search, Sparkles, Heart } from 'lucide-react'
 import { AuthModal } from '../components/AuthModal'
 import { useState, useEffect } from 'react'
@@ -17,8 +18,8 @@ function FeatureSection({
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
-      whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: true }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0 }}
       transition={{ duration: 0.5 }}
       className="prompt-box"
     >
@@ -62,8 +63,8 @@ function WhyUseSection() {
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
-      whileInView={{ opacity: 0.9, y: 0 }}
-      viewport={{ once: true }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0 }}
       transition={{ duration: 0.5 }}
       className="text-center mt-16 mb-16"
     >
@@ -73,8 +74,8 @@ function WhyUseSection() {
           <motion.div
             key={index}
             initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0 }}
             transition={{ duration: 0.5, delay: index * 0.2 }}
             className="p-6 rounded-lg bg-background-secondary"
           >
@@ -153,6 +154,7 @@ function TypingEffect() {
     <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
       transition={{ duration: 1 }}
       className="my-16 px-4"
     >
@@ -237,13 +239,14 @@ export function Explore() {
   ]
 
   return (
-    <>
+    <AnimatePresence>
       <div className="min-h-screen bg-background">
         <div className="container max-w-6xl mx-auto px-4 py-16">
           {/* Hero Section */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0 }}
             transition={{ duration: 0.5 }}
             className="text-center mb-16"
           >
@@ -281,8 +284,8 @@ export function Explore() {
           {/* Call to Action */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0 }}
             transition={{ duration: 0.5 }}
             className="text-center mt-16"
           >
@@ -303,6 +306,6 @@ export function Explore() {
         </div>
       </div>
       <AuthModal isOpen={isAuthModalOpen} onClose={() => setIsAuthModalOpen(false)} />
-    </>
+    </AnimatePresence>
   )
 }

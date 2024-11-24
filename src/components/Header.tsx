@@ -38,6 +38,12 @@ export function Header() {
               >
                 Explore
               </Link>
+              <Link
+                to="/about"
+                className="text-gray-200 hover:text-white transition-colors"
+              >
+                About
+              </Link>
               {user && (
                 <Link to="/profile" className="hover:text-white transition-colors">
                   Profile

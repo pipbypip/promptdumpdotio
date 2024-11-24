@@ -1,12 +1,15 @@
+import React from 'react'
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
 import { AuthProvider } from './contexts/AuthContext'
 import { ThemeProvider } from './contexts/ThemeContext'
+import { MotionProvider } from './contexts/MotionContext'
 import { Header } from './components/Header'
 import { Footer } from './components/Footer'
 import { Feed } from './pages/Feed'
 import { Profile } from './pages/Profile'
 import { Home } from './pages/Home'
 import { Explore } from './pages/Explore'
+import { About } from './pages/About'
 import { ProtectedRoute } from './components/ProtectedRoute'
 
 function FeatureCard({ icon, title, description }: { 
@@ -27,34 +30,48 @@ function FeatureCard({ icon, title, description }: {
 
 export function App() {
   return (
-    <AuthProvider>
-      <ThemeProvider>
-        <Router>
-          <div className="min-h-screen bg-background text-foreground font-mono">
-            <Header />
-            <Routes>
-              {/* Public routes */}
-              <Route path="/" element={<Home />} />
-              <Route path="/feed" element={<Feed />} />
-              <Route path="/explore" element={<Explore />} />
-              
-              {/* Protected routes */}
-              <Route
-                path="/profile"
-                element={
-                  <ProtectedRoute>
-                    <Profile />
-                  </ProtectedRoute>
-                }
-              />
+    <React.StrictMode>
+      <MotionProvider>
+        <AuthProvider>
+          <ThemeProvider>
+            <Router>
+              <div className="flex flex-col min-h-screen bg-background text-foreground">
+                <Header />
+                <main className="flex-grow">
+                  <Routes>
+                    {/* Public routes */}
+                    <Route path="/" element={<Home />} />
+                    <Route path="/explore" element={<Explore />} />
+                    <Route path="/about" element={<About />} />
+                    
+                    {/* Protected routes */}
+                    <Route
+                      path="/feed"
+                      element={
+                        <ProtectedRoute>
+                          <Feed />
+                        </ProtectedRoute>
+                      }
+                    />
+                    <Route
+                      path="/profile"
+                      element={
+                        <ProtectedRoute>
+                          <Profile />
+                        </ProtectedRoute>
+                      }
+                    />
 
-              {/* Catch all route */}
-              <Route path="*" element={<Navigate to="/" replace />} />
-            </Routes>
-            <Footer />
-          </div>
-        </Router>
-      </ThemeProvider>
-    </AuthProvider>
+                    {/* Catch all route */}
+                    <Route path="*" element={<Navigate to="/" />} />
+                  </Routes>
+                </main>
+                <Footer />
+              </div>
+            </Router>
+          </ThemeProvider>
+        </AuthProvider>
+      </MotionProvider>
+    </React.StrictMode>
   )
 }
