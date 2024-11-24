@@ -4,30 +4,43 @@ import { X } from 'lucide-react'
 interface PromptModalProps {
   isOpen: boolean
   onClose: () => void
-  onSave: (prompt: { title: string; content: string }) => void
-  initialPrompt?: { title: string; content: string } | null
+  onSave: (prompt: { title: string; content: string; type: string }) => void
+  initialPrompt?: { title: string; content: string; type: string } | null
 }
 
 export function PromptModal({ isOpen, onClose, onSave, initialPrompt }: PromptModalProps) {
   const [title, setTitle] = useState('')
   const [content, setContent] = useState('')
+  const [type, setType] = useState('general')
+
+  const promptTypes = [
+    { value: 'general', label: 'General' },
+    { value: 'coding', label: 'Coding' },
+    { value: 'writing', label: 'Writing' },
+    { value: 'creative', label: 'Creative' },
+    { value: 'business', label: 'Business' },
+    { value: 'academic', label: 'Academic' },
+  ]
 
   // Update form when editing an existing prompt
   useEffect(() => {
     if (initialPrompt) {
       setTitle(initialPrompt.title)
       setContent(initialPrompt.content)
+      setType(initialPrompt.type || 'general')
     } else {
       setTitle('')
       setContent('')
+      setType('general')
     }
   }, [initialPrompt])
 
   const handleSave = () => {
     if (title.trim() && content.trim()) {
-      onSave({ title, content })
+      onSave({ title, content, type })
       setTitle('')
       setContent('')
+      setType('general')
     }
   }
 
@@ -41,7 +54,7 @@ export function PromptModal({ isOpen, onClose, onSave, initialPrompt }: PromptMo
       >
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-xl font-bold">
-            {initialPrompt ? 'Edit Prompt' : 'Share Your Prompt'}
+            {initialPrompt ? 'Edit Prompt' : 'Dump New Prompt'}
           </h2>
           <button
             onClick={onClose}
@@ -64,6 +77,24 @@ export function PromptModal({ isOpen, onClose, onSave, initialPrompt }: PromptMo
               placeholder="Enter a descriptive title"
               className="w-full px-3 py-2 bg-background-secondary border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
             />
+          </div>
+
+          <div>
+            <label htmlFor="type" className="block text-sm font-medium mb-1">
+              Type
+            </label>
+            <select
+              id="type"
+              value={type}
+              onChange={(e) => setType(e.target.value)}
+              className="w-full px-3 py-2 bg-background-secondary border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+            >
+              {promptTypes.map((promptType) => (
+                <option key={promptType.value} value={promptType.value}>
+                  {promptType.label}
+                </option>
+              ))}
+            </select>
           </div>
 
           <div>

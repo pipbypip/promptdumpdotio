@@ -1,8 +1,11 @@
 import { useState, useMemo, useEffect } from 'react'
-import { Sparkles, Star, MessageCircle, Share2, Settings, Edit3, PlusCircle, Copy, Check } from 'lucide-react'
+import { Sparkles, Star, MessageCircle, Share2, Settings as SettingsIcon, Edit3, PlusCircle, Copy, Check } from 'lucide-react'
 import { SearchAndSort, type SortOption, type CategoryOption } from '../components/SearchAndSort'
 import { PromptModal } from '../components/PromptModal'
 import { DumpCard, type Dump } from '../components/DumpCard'
+import { Settings } from '../components/Settings'
+import { getAuth } from 'firebase/auth'
+import { Link } from 'react-router-dom'
 
 interface Prompt {
   id: string
@@ -28,10 +31,22 @@ export function Profile() {
   const [sortBy, setSortBy] = useState<SortOption>('newest')
   const [category, setCategory] = useState<CategoryOption>('all')
   const [isModalOpen, setIsModalOpen] = useState(false)
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false)
   const [editingPrompt, setEditingPrompt] = useState<Prompt | null>(null)
   const [copiedId, setCopiedId] = useState<string | null>(null)
   const [activeTab, setActiveTab] = useState<'my-dumps' | 'saved-dumps'>('my-dumps')
   const [savedDumps, setSavedDumps] = useState<Dump[]>([])
+  const [editingInlinePrompt, setEditingInlinePrompt] = useState<string | null>(null);
+  const [inlineTitle, setInlineTitle] = useState('');
+  const [inlineContent, setInlineContent] = useState('');
+
+  // Load user dumps from localStorage
+  useEffect(() => {
+    if (activeTab === 'my-dumps') {
+      const userDumps = JSON.parse(localStorage.getItem('userDumps') || '[]')
+      setPrompts(userDumps)
+    }
+  }, [activeTab])
 
   // Load saved dumps from localStorage
   useEffect(() => {
@@ -74,28 +89,27 @@ export function Profile() {
     })
   }, [prompts, searchQuery, sortBy, category])
 
-  // Mock user data - will be replaced with Firebase auth user data
-  const user = {
-    name: 'AI Enthusiast',
-    username: '@ai_prompter',
-    avatar: 'https://api.dicebear.com/7.x/pixel-art/svg?seed=ai_prompter',
-    joinedDate: 'January 2024'
-  }
+  // Get current user
+  const auth = getAuth()
+  const user = auth.currentUser
 
-  const handleSavePrompt = (prompt: { title: string; content: string }) => {
+  const handleSavePrompt = (prompt: { title: string; content: string; type: string }) => {
     if (editingPrompt) {
       // Update existing prompt
-      setPrompts(prevPrompts =>
-        prevPrompts.map(p =>
-          p.id === editingPrompt.id
-            ? {
-                ...p,
-                title: prompt.title,
-                content: prompt.content,
-              }
-            : p
-        )
+      const updatedPrompts = prompts.map(p =>
+        p.id === editingPrompt.id
+          ? {
+              ...p,
+              title: prompt.title,
+              content: prompt.content,
+              category: prompt.type
+            }
+          : p
       )
+      setPrompts(updatedPrompts)
+      
+      // Update localStorage
+      localStorage.setItem('userDumps', JSON.stringify(updatedPrompts))
       setEditingPrompt(null)
     } else {
       // Create new prompt
@@ -106,15 +120,20 @@ export function Profile() {
         likes: 0,
         comments: 0,
         createdAt: new Date().toISOString(),
-        category: 'chat'
+        category: prompt.type
       }
-      setPrompts(prevPrompts => [newPrompt, ...prevPrompts])
+      const updatedPrompts = [newPrompt, ...prompts]
+      setPrompts(updatedPrompts)
+      localStorage.setItem('userDumps', JSON.stringify(updatedPrompts))
     }
     setIsModalOpen(false)
   }
 
   const handleEdit = (prompt: Prompt) => {
-    setEditingPrompt(prompt)
+    setEditingPrompt({
+      ...prompt,
+      type: prompt.category || 'general'
+    })
     setIsModalOpen(true)
   }
 
@@ -130,6 +149,27 @@ export function Profile() {
     }
   }
 
+  const handleInlineEdit = (prompt: Prompt) => {
+    setEditingInlinePrompt(prompt.id);
+    setInlineTitle(prompt.title);
+    setInlineContent(prompt.content);
+  };
+
+  const handleInlineSave = (prompt: Prompt) => {
+    const updatedPrompts = prompts.map(p =>
+      p.id === prompt.id
+        ? {
+            ...p,
+            title: inlineTitle,
+            content: inlineContent,
+          }
+        : p
+    );
+    setPrompts(updatedPrompts);
+    localStorage.setItem('userDumps', JSON.stringify(updatedPrompts));
+    setEditingInlinePrompt(null);
+  };
+
   return (
     <div className="container mx-auto py-8 px-4">
       <div className="max-w-4xl mx-auto">
@@ -137,12 +177,20 @@ export function Profile() {
         <div className="flex items-center justify-between mb-8">
           <div className="flex items-center space-x-4">
             <img
-              src={user.avatar}
-              alt={user.name}
+              src={user?.photoURL || `https://api.dicebear.com/7.x/pixel-art/svg?seed=${user?.email}`}
+              alt={user?.displayName || 'Profile'}
               className="w-16 h-16 rounded-full"
             />
             <div>
-              <h1 className="text-2xl font-bold">{user.name}</h1>
+              <h1 className="text-2xl font-bold">{user?.displayName || 'AI Enthusiast'}</h1>
+              {user?.username && (
+                <Link
+                  to={`/u/${user?.username}`}
+                  className="text-foreground-secondary hover:text-foreground transition-colors"
+                >
+                  View Public Profile
+                </Link>
+              )}
               {isEditing ? (
                 <input
                   type="text"
@@ -162,8 +210,11 @@ export function Profile() {
               )}
             </div>
           </div>
-          <button className="p-2 hover:bg-background-secondary rounded-full">
-            <Settings className="w-6 h-6" />
+          <button 
+            onClick={() => setIsSettingsOpen(true)}
+            className="p-2 hover:bg-background-secondary rounded-full"
+          >
+            <SettingsIcon className="w-6 h-6" />
           </button>
         </div>
 
@@ -223,37 +274,73 @@ export function Profile() {
                   className="prompt-box"
                 >
                   <div className="flex justify-between items-start mb-2">
-                    <h3 className="text-lg font-bold">{prompt.title}</h3>
+                    {editingInlinePrompt === prompt.id ? (
+                      <input
+                        type="text"
+                        value={inlineTitle}
+                        onChange={(e) => setInlineTitle(e.target.value)}
+                        className="text-lg font-bold bg-background-secondary rounded px-2 py-1 w-full mr-2"
+                        autoFocus
+                      />
+                    ) : (
+                      <h3 
+                        className="text-lg font-bold cursor-pointer hover:text-primary"
+                        onDoubleClick={() => handleInlineEdit(prompt)}
+                      >
+                        {prompt.title}
+                      </h3>
+                    )}
                     <div className="flex gap-2">
-                      <button
-                        onClick={() => handleEdit(prompt)}
-                        className="p-1 hover:text-primary transition-colors"
-                        title="Edit prompt"
-                      >
-                        <Edit3 className="w-4 h-4" />
-                      </button>
-                      <button
-                        onClick={() => handleCopy(prompt)}
-                        className={`p-1 transition-all duration-200 ${
-                          copiedId === prompt.id
-                            ? 'text-green-500 scale-110'
-                            : 'hover:text-primary'
-                        }`}
-                        title={copiedId === prompt.id ? 'Copied!' : 'Copy prompt'}
-                      >
-                        {copiedId === prompt.id ? (
-                          <Check className="w-4 h-4 animate-bounce" />
-                        ) : (
-                          <Copy className="w-4 h-4" />
-                        )}
-                      </button>
+                      {editingInlinePrompt === prompt.id ? (
+                        <button
+                          onClick={() => handleInlineSave(prompt)}
+                          className="p-1 text-primary hover:text-accent transition-colors"
+                          title="Save changes"
+                        >
+                          <Check className="w-4 h-4" />
+                        </button>
+                      ) : (
+                        <>
+                          <button
+                            onClick={() => handleInlineEdit(prompt)}
+                            className="p-1 hover:text-primary transition-colors"
+                            title="Edit prompt"
+                          >
+                            <Edit3 className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => handleCopy(prompt)}
+                            className={`p-1 transition-all duration-200 ${
+                              copiedId === prompt.id
+                                ? 'text-green-500 scale-110'
+                                : 'hover:text-primary'
+                            }`}
+                            title={copiedId === prompt.id ? 'Copied!' : 'Copy prompt'}
+                          >
+                            {copiedId === prompt.id ? (
+                              <Check className="w-4 h-4 animate-bounce" />
+                            ) : (
+                              <Copy className="w-4 h-4" />
+                            )}
+                          </button>
+                        </>
+                      )}
                     </div>
                   </div>
-                  <p className="text-foreground-secondary mb-4">
-                    {prompt.content.length > 100
-                      ? prompt.content.slice(0, 100) + '...'
-                      : prompt.content}
-                  </p>
+                  {editingInlinePrompt === prompt.id ? (
+                    <textarea
+                      value={inlineContent}
+                      onChange={(e) => setInlineContent(e.target.value)}
+                      className="text-foreground-secondary mb-4 w-full h-32 bg-background-secondary rounded px-2 py-1 resize-none"
+                    />
+                  ) : (
+                    <p 
+                      className="text-foreground-secondary mb-4 cursor-pointer hover:text-foreground"
+                      onDoubleClick={() => handleInlineEdit(prompt)}
+                    >
+                      {prompt.content}
+                    </p>
+                  )}
                   <div className="flex items-center gap-4 text-foreground-secondary">
                     <button className="flex items-center gap-1 hover:text-primary">
                       <Star className="w-4 h-4" />
@@ -287,16 +374,22 @@ export function Profile() {
           </div>
         )}
 
-        {/* Modal */}
-        <PromptModal
-          isOpen={isModalOpen}
-          onClose={() => {
-            setIsModalOpen(false)
-            setEditingPrompt(null)
-          }}
-          onSave={handleSavePrompt}
-          initialValues={editingPrompt}
-        />
+        {/* Settings Modal */}
+        {isSettingsOpen && (
+          <Settings onClose={() => setIsSettingsOpen(false)} />
+        )}
+
+        {/* Prompt Modal */}
+        {isModalOpen && (
+          <PromptModal
+            onClose={() => {
+              setIsModalOpen(false)
+              setEditingPrompt(null)
+            }}
+            onSave={handleSavePrompt}
+            initialPrompt={editingPrompt}
+          />
+        )}
       </div>
     </div>
   )

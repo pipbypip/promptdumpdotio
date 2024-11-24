@@ -18,7 +18,8 @@ const mockDumps: Dump[] = [
     comments: 56,
     tags: ['stable-diffusion', 'art', 'cyberpunk'],
     createdAt: '2024-01-15',
-    category: 'art'
+    category: 'art',
+    type: 'art'
   },
   {
     id: '2',
@@ -32,7 +33,8 @@ const mockDumps: Dump[] = [
     comments: 42,
     tags: ['gpt-4', 'coding', 'review'],
     createdAt: '2024-01-14',
-    category: 'coding'
+    category: 'coding',
+    type: 'coding'
   },
   {
     id: '3',
@@ -46,7 +48,8 @@ const mockDumps: Dump[] = [
     comments: 23,
     tags: ['claude', 'business', 'strategy'],
     createdAt: '2024-01-13',
-    category: 'business'
+    category: 'business',
+    type: 'business'
   },
   {
     id: '4',
@@ -60,7 +63,8 @@ const mockDumps: Dump[] = [
     comments: 30,
     tags: ['gpt-4', 'writing', 'poetry'],
     createdAt: '2024-01-12',
-    category: 'writing'
+    category: 'writing',
+    type: 'writing'
   },
   {
     id: '5',
@@ -74,7 +78,8 @@ const mockDumps: Dump[] = [
     comments: 40,
     tags: ['marketing', 'copywriting', 'eco'],
     createdAt: '2024-01-11',
-    category: 'marketing'
+    category: 'marketing',
+    type: 'marketing'
   },
   {
     id: '6',
@@ -88,7 +93,8 @@ const mockDumps: Dump[] = [
     comments: 65,
     tags: ['midjourney', 'art', 'surreal'],
     createdAt: '2024-01-10',
-    category: 'art'
+    category: 'art',
+    type: 'art'
   },
   {
     id: '7',
@@ -102,7 +108,8 @@ const mockDumps: Dump[] = [
     comments: 28,
     tags: ['coding', 'sql', 'optimization'],
     createdAt: '2024-01-09',
-    category: 'coding'
+    category: 'coding',
+    type: 'coding'
   },
   {
     id: '8',
@@ -116,7 +123,8 @@ const mockDumps: Dump[] = [
     comments: 26,
     tags: ['gpt-4', 'gaming', 'storytelling'],
     createdAt: '2024-01-08',
-    category: 'gaming'
+    category: 'gaming',
+    type: 'gaming'
   },
   {
     id: '9',
@@ -130,7 +138,8 @@ const mockDumps: Dump[] = [
     comments: 55,
     tags: ['gpt-4', 'health', 'fitness'],
     createdAt: '2024-01-07',
-    category: 'health'
+    category: 'health',
+    type: 'health'
   },
   {
     id: '10',
@@ -144,7 +153,8 @@ const mockDumps: Dump[] = [
     comments: 20,
     tags: ['gpt-4', 'language', 'education'],
     createdAt: '2024-01-06',
-    category: 'education'
+    category: 'education',
+    type: 'education'
   },
   {
     id: '11',
@@ -158,7 +168,8 @@ const mockDumps: Dump[] = [
     comments: 25,
     tags: ['business', 'pitch', 'startups'],
     createdAt: '2024-01-05',
-    category: 'business'
+    category: 'business',
+    type: 'business'
   },
   {
     id: '12',
@@ -172,7 +183,8 @@ const mockDumps: Dump[] = [
     comments: 24,
     tags: ['gpt-4', 'writing', 'history'],
     createdAt: '2024-01-04',
-    category: 'writing'
+    category: 'writing',
+    type: 'writing'
   },
   {
     id: '13',
@@ -186,7 +198,8 @@ const mockDumps: Dump[] = [
     comments: 50,
     tags: ['art', 'fantasy', 'urban'],
     createdAt: '2024-01-03',
-    category: 'art'
+    category: 'art',
+    type: 'art'
   },
   {
     id: '14',
@@ -200,7 +213,8 @@ const mockDumps: Dump[] = [
     comments: 35,
     tags: ['gpt-4', 'law', 'clarity'],
     createdAt: '2024-01-02',
-    category: 'legal'
+    category: 'legal',
+    type: 'legal'
   },
   {
     id: '15',
@@ -214,9 +228,26 @@ const mockDumps: Dump[] = [
     comments: 48,
     tags: ['gpt-4', 'travel', 'planning'],
     createdAt: '2024-01-01',
-    category: 'travel'
+    category: 'travel',
+    type: 'travel'
   }
 ]
+
+export interface Dump {
+  id: string
+  title: string
+  prompt: string
+  author: {
+    name: string
+    avatar: string
+  }
+  likes: number
+  comments: number
+  tags: string[]
+  createdAt: string
+  category: string
+  type: string
+}
 
 export function DumpFeed() {
   const [isModalOpen, setIsModalOpen] = useState(false)
@@ -260,7 +291,7 @@ export function DumpFeed() {
     })
   }, [dumps, searchQuery, sortBy, category])
 
-  const handleSavePrompt = (prompt: { title: string; content: string }) => {
+  const handleSavePrompt = (prompt: { title: string; content: string; type: string }) => {
     const newDump: Dump = {
       id: `dump-${Date.now()}`,
       title: prompt.title,
@@ -273,9 +304,29 @@ export function DumpFeed() {
       comments: 0,
       tags: [],
       createdAt: new Date().toISOString(),
+      category: prompt.type,
+      type: prompt.type
     }
 
+    // Add to feed
     setDumps(prev => [newDump, ...prev])
+
+    // Save to user's profile
+    const userDumps = JSON.parse(localStorage.getItem('userDumps') || '[]')
+    const updatedUserDumps = [
+      {
+        id: newDump.id,
+        title: newDump.title,
+        content: newDump.prompt,
+        likes: newDump.likes,
+        comments: newDump.comments,
+        createdAt: newDump.createdAt,
+        category: newDump.category
+      },
+      ...userDumps
+    ]
+    localStorage.setItem('userDumps', JSON.stringify(updatedUserDumps))
+
     setIsModalOpen(false)
   }
 
