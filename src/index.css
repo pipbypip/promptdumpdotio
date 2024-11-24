@@ -220,3 +220,58 @@ select option {
 .terminal-output::-webkit-scrollbar-thumb:hover {
   background: #00cc00;
 }
+
+/* iOS Optimizations */
+@supports (-webkit-touch-callout: none) {
+  /* iOS-specific padding for notch devices */
+  .safe-top {
+    padding-top: env(safe-area-inset-top);
+  }
+  
+  .safe-bottom {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  /* Disable text selection */
+  * {
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+  }
+
+  /* Enable text selection in specific elements */
+  input, textarea, [contenteditable="true"] {
+    -webkit-user-select: text;
+  }
+
+  /* Fix sticky hover states */
+  @media (hover: none) {
+    .hover\:* {
+      transition: none !important;
+    }
+  }
+
+  /* Smooth scrolling */
+  html {
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Fix for iOS momentum scrolling */
+  .overflow-scroll {
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Fix for iOS button tap highlight */
+  button {
+    -webkit-tap-highlight-color: transparent;
+  }
+}
+
+/* Fix for iOS input zoom */
+@media screen and (max-width: 768px) {
+  input[type="text"],
+  input[type="email"],
+  input[type="password"],
+  textarea {
+    font-size: 16px !important;
+  }
+}

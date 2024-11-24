@@ -24,6 +24,7 @@ export interface Prompt {
   createdAt: Date
   updatedAt: Date
   isPublic: boolean
+  type: string
 }
 
 // Collection references
@@ -33,6 +34,7 @@ const promptsCollection = collection(db, 'prompts')
 export async function createPrompt(prompt: Omit<Prompt, 'id'>) {
   const docRef = await addDoc(promptsCollection, {
     ...prompt,
+    type: prompt.type || 'general',
     createdAt: new Date(),
     updatedAt: new Date(),
   })

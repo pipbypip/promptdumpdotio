@@ -4,7 +4,7 @@ import { Logo } from './Logo'
 
 export function Footer() {
   return (
-    <footer className="bg-[#2a2a2a] border-t border-[#3a3a3a]">
+    <footer className="bg-[#090c10] border-t border-[#3a3a3a] safe-bottom">
       <div className="container py-10">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
           <div className="space-y-4">
@@ -33,7 +33,7 @@ export function Footer() {
           <div>
             <h3 className="font-semibold mb-4 text-white">Legal</h3>
             <ul className="space-y-2">
-              <FooterLink href="/privacy">Privacy</FooterLink>
+              <FooterLink href="/privacy">Privacy Policy</FooterLink>
               <FooterLink href="/terms">Terms</FooterLink>
             </ul>
           </div>

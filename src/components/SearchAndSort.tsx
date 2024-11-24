@@ -1,5 +1,5 @@
 import React from 'react'
-import { Search, SortAsc } from 'lucide-react'
+import { Search, SortAsc, Undo2 } from 'lucide-react'
 
 export type SortOption = 'trending' | 'newest' | 'oldest'
 export type CategoryOption = 'all' | 'video' | 'image' | 'code' | 'chat' | 'writing'
@@ -8,6 +8,8 @@ interface SearchAndSortProps {
   onSearch: (query: string) => void
   onSortChange: (sort: SortOption) => void
   onCategoryChange: (category: CategoryOption) => void
+  onUndo?: () => void
+  canUndo?: boolean
   sortValue: SortOption
   categoryValue: CategoryOption
   searchValue: string
@@ -17,6 +19,8 @@ export function SearchAndSort({
   onSearch,
   onSortChange,
   onCategoryChange,
+  onUndo,
+  canUndo,
   sortValue,
   categoryValue,
   searchValue
@@ -36,6 +40,21 @@ export function SearchAndSort({
       </div>
 
       <div className="flex gap-4">
+        {/* Undo Button */}
+        {onUndo && (
+          <button
+            onClick={onUndo}
+            disabled={!canUndo}
+            className={`px-3 py-2 rounded-lg border border-border transition-colors ${
+              canUndo 
+                ? 'hover:bg-background-secondary text-foreground cursor-pointer' 
+                : 'text-foreground-secondary cursor-not-allowed'
+            }`}
+            title="Undo last deletion"
+          >
+            <Undo2 className="w-5 h-5" />
+          </button>
+        )}
         {/* Sort Dropdown */}
         <div className="relative">
           <SortAsc className="absolute left-3 top-1/2 transform -translate-y-1/2 text-foreground-secondary w-5 h-5" />

@@ -251,45 +251,28 @@ export interface Dump {
 
 export function DumpFeed() {
   const [isModalOpen, setIsModalOpen] = useState(false)
-  const [dumps, setDumps] = useState<Dump[]>(mockDumps)
   const [searchQuery, setSearchQuery] = useState('')
-  const [sortBy, setSortBy] = useState<SortOption>('trending')
-  const [category, setCategory] = useState<CategoryOption>('all')
+  const [sortOption, setSortOption] = useState<SortOption>('trending')
+  const [categoryOption, setCategoryOption] = useState<CategoryOption>('all')
+  const [dumps, setDumps] = useState<Dump[]>(mockDumps)
+  const [deletedDumps, setDeletedDumps] = useState<Dump[]>([])
   const navigate = useNavigate()
 
-  // Filter and sort dumps
-  const filteredDumps = useMemo(() => {
-    let result = dumps
-
-    // Apply search filter
-    if (searchQuery) {
-      const query = searchQuery.toLowerCase()
-      result = result.filter(dump => 
-        dump.title.toLowerCase().includes(query) ||
-        dump.prompt.toLowerCase().includes(query) ||
-        dump.tags.some(tag => tag.toLowerCase().includes(query))
-      )
+  const handleDelete = (id: string) => {
+    const dumpToDelete = dumps.find(dump => dump.id === id)
+    if (dumpToDelete) {
+      setDumps(prevDumps => prevDumps.filter(dump => dump.id !== id))
+      setDeletedDumps(prevDeleted => [dumpToDelete, ...prevDeleted])
     }
+  }
 
-    // Apply category filter
-    if (category !== 'all') {
-      result = result.filter(dump => dump.category === category)
+  const handleUndo = () => {
+    if (deletedDumps.length > 0) {
+      const [lastDeleted, ...remainingDeleted] = deletedDumps
+      setDumps(prevDumps => [...prevDumps, lastDeleted])
+      setDeletedDumps(remainingDeleted)
     }
-
-    // Apply sorting
-    return [...result].sort((a, b) => {
-      switch (sortBy) {
-        case 'trending':
-          return b.likes - a.likes
-        case 'newest':
-          return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-        case 'oldest':
-          return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
-        default:
-          return 0
-      }
-    })
-  }, [dumps, searchQuery, sortBy, category])
+  }
 
   const handleSavePrompt = (prompt: { title: string; content: string; type: string }) => {
     const newDump: Dump = {
@@ -330,6 +313,39 @@ export function DumpFeed() {
     setIsModalOpen(false)
   }
 
+  const filteredDumps = useMemo(() => {
+    let result = dumps
+
+    // Apply search filter
+    if (searchQuery) {
+      const query = searchQuery.toLowerCase()
+      result = result.filter(dump => 
+        dump.title.toLowerCase().includes(query) ||
+        dump.prompt.toLowerCase().includes(query) ||
+        dump.tags.some(tag => tag.toLowerCase().includes(query))
+      )
+    }
+
+    // Apply category filter
+    if (categoryOption !== 'all') {
+      result = result.filter(dump => dump.category === categoryOption)
+    }
+
+    // Apply sorting
+    return [...result].sort((a, b) => {
+      switch (sortOption) {
+        case 'trending':
+          return b.likes - a.likes
+        case 'newest':
+          return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+        case 'oldest':
+          return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+        default:
+          return 0
+      }
+    })
+  }, [dumps, searchQuery, sortOption, categoryOption])
+
   return (
     <div className="py-8 px-4">
       <div className="max-w-4xl mx-auto">
@@ -347,21 +363,23 @@ export function DumpFeed() {
 
           <SearchAndSort
             searchValue={searchQuery}
-            sortValue={sortBy}
-            categoryValue={category}
+            sortValue={sortOption}
+            categoryValue={categoryOption}
             onSearch={setSearchQuery}
-            onSortChange={setSortBy}
-            onCategoryChange={setCategory}
+            onSortChange={setSortOption}
+            onCategoryChange={setCategoryOption}
+            onUndo={handleUndo}
+            canUndo={deletedDumps.length > 0}
           />
 
-          <div className="space-y-6">
+          <div className="grid grid-cols-1 gap-6">
             {filteredDumps.length === 0 ? (
               <div className="text-center py-12 bg-background-secondary rounded-xl">
                 <p className="text-foreground-secondary">No prompts found</p>
               </div>
             ) : (
               filteredDumps.map(dump => (
-                <DumpCard key={dump.id} dump={dump} />
+                <DumpCard key={dump.id} dump={dump} onDelete={handleDelete} />
               ))
             )}
           </div>
