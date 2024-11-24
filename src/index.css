@@ -1,0 +1,222 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 240 10% 3.9%;
+    --card: 0 0% 82%;
+    --card-foreground: 240 10% 3.9%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 240 10% 3.9%;
+    --primary: 103 70% 50%;
+    --primary-foreground: 0 0% 0%;
+    --secondary: 103 41% 45%;
+    --secondary-foreground: 0 0% 100%;
+    --muted: 240 4.8% 95.9%;
+    --muted-foreground: 240 3.8% 46.1%;
+    --accent: 103 70% 50%;
+    --accent-foreground: 0 0% 0%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 240 5.9% 90%;
+    --input: 240 5.9% 90%;
+    --ring: 103 70% 50%;
+    --radius: 0.5rem;
+  }
+
+  .dark {
+    --background: 225 9% 9%;
+    --foreground: 0 0% 95%;
+    --card: 24 9.8% 10%;
+    --card-foreground: 0 0% 95%;
+    --popover: 0 0% 9%;
+    --popover-foreground: 0 0% 95%;
+    --primary: 103 70% 50%;
+    --primary-foreground: 0 0% 0%;
+    --secondary: 103 41% 45%;
+    --secondary-foreground: 0 0% 100%;
+    --muted: 223 47% 11%;
+    --muted-foreground: 215.4 16.3% 56.9%;
+    --accent: 103 70% 45%;
+    --accent-foreground: 0 0% 100%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 217.2 32.6% 17.5%;
+    --input: 217.2 32.6% 17.5%;
+    --ring: 103 70% 50%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-gradient-to-b from-background to-background/95 text-foreground min-h-screen;
+  }
+  .dark body {
+    @apply bg-gradient-to-br from-[#121212] via-[#151515] to-[#1a1a1a] bg-[length:400%_400%] animate-gradient min-h-screen;
+  }
+}
+
+@keyframes gradient {
+  0% {
+    background-position: 0% 0%;
+  }
+  50% {
+    background-position: 100% 100%;
+  }
+  100% {
+    background-position: 0% 0%;
+  }
+}
+
+.animate-gradient {
+  animation: gradient 15s ease infinite;
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  @apply bg-background;
+}
+
+::-webkit-scrollbar-thumb {
+  @apply bg-muted rounded-full;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  @apply bg-accent;
+}
+
+/* Matrix-inspired button styles with reduced saturation */
+.matrix-gradient {
+  @apply bg-gradient-to-r from-[#80d980] via-[#92e692] to-[#a6f2a6] hover:from-[#8cd98c] hover:via-[#66cc66] hover:to-[#7acc7a] text-black transition-all duration-300;
+}
+
+.dark .matrix-gradient {
+  @apply from-[#4da679] via-[#3f9a6d] to-[#2f8a5d] hover:from-[#66cc66] hover:via-[#7acc7a] hover:to-[#8cd98c] text-white;
+}
+
+/* Neon hover animation for prompt boxes */
+@keyframes neonPulse {
+  0% {
+    box-shadow: 0 0 5px rgba(138, 43, 226, 0.2),
+                0 0 10px rgba(138, 43, 226, 0.2),
+                0 0 15px rgba(0, 191, 255, 0.2),
+                0 0 20px rgba(50, 205, 50, 0.2);
+  }
+  50% {
+    box-shadow: 0 0 10px rgba(138, 43, 226, 0.4),
+                0 0 20px rgba(138, 43, 226, 0.4),
+                0 0 30px rgba(0, 191, 255, 0.4),
+                0 0 40px rgba(50, 205, 50, 0.4);
+  }
+  100% {
+    box-shadow: 0 0 5px rgba(138, 43, 226, 0.2),
+                0 0 10px rgba(138, 43, 226, 0.2),
+                0 0 15px rgba(0, 191, 255, 0.2),
+                0 0 20px rgba(50, 205, 50, 0.2);
+  }
+}
+
+.prompt-box {
+  @apply bg-[#f5f5f5] rounded-lg p-6 transition-all duration-300;
+}
+
+.dark .prompt-box {
+  @apply bg-black;
+}
+
+.prompt-box:hover {
+  @apply transform scale-[1.02];
+  animation: neonPulse 2s ease-in-out infinite;
+  box-shadow: 0 0 10px rgba(138, 43, 226, 0.2),
+              0 0 20px rgba(138, 43, 226, 0.2),
+              0 0 30px rgba(0, 191, 255, 0.2),
+              0 0 40px rgba(50, 205, 50, 0.2);
+}
+
+.prompt-box {
+  padding: 1rem;
+  line-height: 1.8;
+  border: 1px solid hsl(var(--border));
+  background-color: hsl(var(--card));
+}
+
+/* Interaction icons animations */
+@keyframes scaleAndRotate {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.2) rotate(8deg); }
+  100% { transform: scale(1); }
+}
+
+@keyframes bounce {
+  0% { transform: translateY(0); }
+  50% { transform: translateY(-4px); }
+  100% { transform: translateY(0); }
+}
+
+@keyframes pulse {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.2); }
+  100% { transform: scale(1); }
+}
+
+.prompt-box .thumbs-up:hover {
+  animation: scaleAndRotate 0.5s ease;
+  color: hsl(var(--primary));
+}
+
+.prompt-box .share-icon:hover {
+  animation: bounce 0.5s ease;
+  color: hsl(var(--primary));
+}
+
+.prompt-box .bookmark {
+  transition: all 0.3s ease;
+  stroke: currentColor;
+}
+
+.prompt-box .bookmark.saved {
+  animation: pulse 0.5s ease;
+  color: hsl(var(--primary));
+}
+
+.prompt-box .bookmark:not(.saved):hover {
+  color: hsl(var(--primary));
+}
+
+/* Dropdown styles */
+select option {
+  @apply bg-background text-foreground;
+  padding: 8px;
+}
+
+.dark select option {
+  @apply bg-[#1d1d1d] text-white;
+}
+
+/* Terminal output scrollbar styles */
+.terminal-output::-webkit-scrollbar {
+  width: 8px;
+}
+
+.terminal-output::-webkit-scrollbar-track {
+  background: #000000;
+  border-left: 1px solid #00ff00;
+}
+
+.terminal-output::-webkit-scrollbar-thumb {
+  background: #00ff00;
+  border-radius: 4px;
+}
+
+.terminal-output::-webkit-scrollbar-thumb:hover {
+  background: #00cc00;
+}
