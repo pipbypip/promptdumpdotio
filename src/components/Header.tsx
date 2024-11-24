@@ -21,13 +21,19 @@ export function Header() {
 
   return (
     <>
-      <header className="border-b border-[#2a2a2a] sticky top-0 bg-[#1d1d1d]/95 backdrop-blur-sm z-50">
+      <header className="border-b border-[#2a2a2a] sticky top-0 bg-[#2d2f32]/95 backdrop-blur-sm z-50 safe-top">
         <div className="container max-w-6xl mx-auto px-4 h-16 flex items-center justify-between text-gray-200">
           <div className="flex items-center space-x-8">
             <Logo />
             <nav className="hidden md:flex space-x-8">
               <Link
-                to="/feed"
+                to={user ? "/feed" : "#"}
+                onClick={(e) => {
+                  if (!user) {
+                    e.preventDefault();
+                    setIsAuthModalOpen(true);
+                  }
+                }}
                 className="text-gray-200 hover:text-white transition-colors"
               >
                 Dump Feed

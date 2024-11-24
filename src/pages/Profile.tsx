@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from 'react'
-import { Sparkles, Star, MessageCircle, Share2, Settings as SettingsIcon, Edit3, PlusCircle, Copy, Check } from 'lucide-react'
+import { Sparkles, Star, MessageCircle, Share2, Settings as SettingsIcon, Edit3, PlusCircle, Copy, Check, Trash2 } from 'lucide-react'
 import { SearchAndSort, type SortOption, type CategoryOption } from '../components/SearchAndSort'
 import { PromptModal } from '../components/PromptModal'
 import { DumpCard, type Dump } from '../components/DumpCard'
@@ -20,11 +20,20 @@ interface Prompt {
 interface Dump {
   id: string
   title: string
-  content: string
+  prompt: string
+  author: {
+    name: string
+    avatar: string
+  }
+  likes: number
+  comments: number
+  tags: string[]
+  createdAt: string
+  category?: CategoryOption
 }
 
 export function Profile() {
-  const [prompts, setPrompts] = useState<Prompt[]>([])
+  const [prompts, setPrompts] = useState<Dump[]>([])
   const [isEditing, setIsEditing] = useState(false)
   const [bio, setBio] = useState('AI prompt engineer and enthusiast')
   const [searchQuery, setSearchQuery] = useState('')
@@ -32,13 +41,14 @@ export function Profile() {
   const [category, setCategory] = useState<CategoryOption>('all')
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [isSettingsOpen, setIsSettingsOpen] = useState(false)
-  const [editingPrompt, setEditingPrompt] = useState<Prompt | null>(null)
+  const [editingPrompt, setEditingPrompt] = useState<Dump | null>(null)
   const [copiedId, setCopiedId] = useState<string | null>(null)
   const [activeTab, setActiveTab] = useState<'my-dumps' | 'saved-dumps'>('my-dumps')
   const [savedDumps, setSavedDumps] = useState<Dump[]>([])
   const [editingInlinePrompt, setEditingInlinePrompt] = useState<string | null>(null);
   const [inlineTitle, setInlineTitle] = useState('');
   const [inlineContent, setInlineContent] = useState('');
+  const [deletedPrompts, setDeletedPrompts] = useState<Dump[]>([])
 
   // Load user dumps from localStorage
   useEffect(() => {
@@ -65,7 +75,7 @@ export function Profile() {
       const query = searchQuery.toLowerCase()
       result = result.filter(prompt => 
         prompt.title.toLowerCase().includes(query) ||
-        prompt.content.toLowerCase().includes(query)
+        prompt.prompt.toLowerCase().includes(query)
       )
     }
 
@@ -101,8 +111,8 @@ export function Profile() {
           ? {
               ...p,
               title: prompt.title,
-              content: prompt.content,
-              category: prompt.type
+              prompt: prompt.content,
+              category: prompt.type as CategoryOption
             }
           : p
       )
@@ -113,14 +123,19 @@ export function Profile() {
       setEditingPrompt(null)
     } else {
       // Create new prompt
-      const newPrompt: Prompt = {
+      const newPrompt: Dump = {
         id: `prompt-${Date.now()}`,
         title: prompt.title,
-        content: prompt.content,
+        prompt: prompt.content,
+        author: {
+          name: user?.displayName || 'Anonymous',
+          avatar: user?.photoURL || `https://api.dicebear.com/7.x/pixel-art/svg?seed=${user?.uid || 'anonymous'}`
+        },
         likes: 0,
         comments: 0,
+        tags: [],
         createdAt: new Date().toISOString(),
-        category: prompt.type
+        category: prompt.type as CategoryOption
       }
       const updatedPrompts = [newPrompt, ...prompts]
       setPrompts(updatedPrompts)
@@ -129,7 +144,7 @@ export function Profile() {
     setIsModalOpen(false)
   }
 
-  const handleEdit = (prompt: Prompt) => {
+  const handleEdit = (prompt: Dump) => {
     setEditingPrompt({
       ...prompt,
       type: prompt.category || 'general'
@@ -137,9 +152,9 @@ export function Profile() {
     setIsModalOpen(true)
   }
 
-  const handleCopy = async (prompt: Prompt) => {
+  const handleCopy = async (prompt: Dump) => {
     try {
-      await navigator.clipboard.writeText(prompt.content)
+      await navigator.clipboard.writeText(prompt.prompt)
       setCopiedId(prompt.id)
       setTimeout(() => {
         setCopiedId(null)
@@ -149,19 +164,19 @@ export function Profile() {
     }
   }
 
-  const handleInlineEdit = (prompt: Prompt) => {
+  const handleInlineEdit = (prompt: Dump) => {
     setEditingInlinePrompt(prompt.id);
     setInlineTitle(prompt.title);
-    setInlineContent(prompt.content);
+    setInlineContent(prompt.prompt);
   };
 
-  const handleInlineSave = (prompt: Prompt) => {
+  const handleInlineSave = (prompt: Dump) => {
     const updatedPrompts = prompts.map(p =>
       p.id === prompt.id
         ? {
             ...p,
             title: inlineTitle,
-            content: inlineContent,
+            prompt: inlineContent,
           }
         : p
     );
@@ -169,6 +184,27 @@ export function Profile() {
     localStorage.setItem('userDumps', JSON.stringify(updatedPrompts));
     setEditingInlinePrompt(null);
   };
+
+  const handleDelete = (promptToDelete: Dump) => {
+    setPrompts(currentPrompts => currentPrompts.filter(p => p.id !== promptToDelete.id))
+    setDeletedPrompts(current => [promptToDelete, ...current])
+    
+    // Update localStorage
+    const updatedPrompts = prompts.filter(p => p.id !== promptToDelete.id)
+    localStorage.setItem('userDumps', JSON.stringify(updatedPrompts))
+  }
+
+  const handleUndo = () => {
+    if (deletedPrompts.length > 0) {
+      const [lastDeleted, ...remainingDeleted] = deletedPrompts
+      setPrompts(current => [...current, lastDeleted])
+      setDeletedPrompts(remainingDeleted)
+      
+      // Update localStorage
+      const updatedPrompts = [...prompts, lastDeleted]
+      localStorage.setItem('userDumps', JSON.stringify(updatedPrompts))
+    }
+  }
 
   return (
     <div className="container mx-auto py-8 px-4">
@@ -251,6 +287,8 @@ export function Profile() {
             onSearch={setSearchQuery}
             onSortChange={setSortBy}
             onCategoryChange={setCategory}
+            onUndo={handleUndo}
+            canUndo={deletedPrompts.length > 0}
           />
         </div>
 
@@ -323,6 +361,13 @@ export function Profile() {
                               <Copy className="w-4 h-4" />
                             )}
                           </button>
+                          <button
+                            onClick={() => handleDelete(prompt)}
+                            className="p-1 hover:text-red-500 transition-colors"
+                            title="Delete prompt"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
                         </>
                       )}
                     </div>
@@ -338,7 +383,7 @@ export function Profile() {
                       className="text-foreground-secondary mb-4 cursor-pointer hover:text-foreground"
                       onDoubleClick={() => handleInlineEdit(prompt)}
                     >
-                      {prompt.content}
+                      {prompt.prompt}
                     </p>
                   )}
                   <div className="flex items-center gap-4 text-foreground-secondary">
@@ -382,6 +427,7 @@ export function Profile() {
         {/* Prompt Modal */}
         {isModalOpen && (
           <PromptModal
+            isOpen={isModalOpen}
             onClose={() => {
               setIsModalOpen(false)
               setEditingPrompt(null)

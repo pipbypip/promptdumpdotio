@@ -10,7 +10,10 @@ import { Profile } from './pages/Profile'
 import { Home } from './pages/Home'
 import { Explore } from './pages/Explore'
 import { About } from './pages/About'
+import { Privacy } from './pages/Privacy'
+import { Terms } from './pages/Terms'
 import { ProtectedRoute } from './components/ProtectedRoute'
+import { PublicProfile } from './pages/PublicProfile'
 
 function FeatureCard({ icon, title, description }: { 
   icon: React.ReactNode
@@ -43,6 +46,9 @@ export function App() {
                     <Route path="/" element={<Home />} />
                     <Route path="/explore" element={<Explore />} />
                     <Route path="/about" element={<About />} />
+                    <Route path="/privacy" element={<Privacy />} />
+                    <Route path="/terms" element={<Terms />} />
+                    <Route path="/u/:username" element={<PublicProfile />} />
                     
                     {/* Protected routes */}
                     <Route

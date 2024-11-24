@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { MessageSquare, ThumbsUp, Share2, Bookmark } from 'lucide-react'
+import { MessageSquare, ThumbsUp, Share2, Bookmark, Trash2 } from 'lucide-react'
 import { CategoryOption } from './SearchAndSort'
 
 export interface Dump {
@@ -19,9 +19,10 @@ export interface Dump {
 
 interface DumpCardProps {
   dump: Dump
+  onDelete?: (id: string) => void
 }
 
-export function DumpCard({ dump }: DumpCardProps) {
+export function DumpCard({ dump, onDelete }: DumpCardProps) {
   const [isSaved, setIsSaved] = useState(false);
 
   useEffect(() => {
@@ -87,7 +88,11 @@ export function DumpCard({ dump }: DumpCardProps) {
           <MessageSquare className="w-4 h-4" />
           <span>{dump.comments}</span>
         </button>
-        <button className="flex items-center space-x-2 hover:text-primary transition-colors">
+        <button 
+          className="p-2 transition-all duration-200 active:scale-95 touch-manipulation"
+          onClick={() => navigator.clipboard.writeText(dump.prompt)}
+          title="Copy prompt"
+        >
           <Share2 className="w-4 h-4 share-icon" />
         </button>
         <button 
@@ -99,6 +104,15 @@ export function DumpCard({ dump }: DumpCardProps) {
             fill={isSaved ? "currentColor" : "none"}
           />
         </button>
+        {onDelete && (
+          <button 
+            className="p-2 transition-all duration-200 active:scale-95 touch-manipulation"
+            onClick={() => onDelete(dump.id)}
+            title="Delete prompt"
+          >
+            <Trash2 className="w-4 h-4" />
+          </button>
+        )}
       </div>
     </div>
   );
