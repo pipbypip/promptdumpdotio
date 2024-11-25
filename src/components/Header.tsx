@@ -21,8 +21,12 @@ export function Header() {
 
   return (
     <>
-      <header className="border-b border-[#2a2a2a] sticky top-0 bg-[#2d2f32]/95 backdrop-blur-sm z-50 safe-top">
-        <div className="container max-w-6xl mx-auto px-4 h-16 flex items-center justify-between text-gray-200">
+      <header className={`border-b sticky top-0 backdrop-blur-sm z-50 safe-top ${
+        theme === 'dark' 
+          ? 'bg-[#1f2329]/95 border-[#3a3a3a] text-gray-200' 
+          : 'bg-[#1f2329]/95 border-[#3a3a3a] text-gray-200'
+      }`}>
+        <div className="container max-w-6xl mx-auto px-4 h-16 flex items-center justify-between relative z-10">
           <div className="flex items-center space-x-8">
             <Logo />
             <nav className="hidden md:flex space-x-8">
@@ -34,24 +38,27 @@ export function Header() {
                     setIsAuthModalOpen(true);
                   }
                 }}
-                className="text-gray-200 hover:text-white transition-colors"
+                className={`hover:text-${theme === 'dark' ? 'white' : 'gray-600'} transition-colors`}
               >
                 Dump Feed
               </Link>
               <Link
                 to="/explore"
-                className="text-gray-200 hover:text-white transition-colors"
+                className={`hover:text-${theme === 'dark' ? 'white' : 'gray-600'} transition-colors`}
               >
                 Explore
               </Link>
               <Link
                 to="/about"
-                className="text-gray-200 hover:text-white transition-colors"
+                className={`hover:text-${theme === 'dark' ? 'white' : 'gray-600'} transition-colors`}
               >
                 About
               </Link>
               {user && (
-                <Link to="/profile" className="hover:text-white transition-colors">
+                <Link 
+                  to="/profile" 
+                  className={`hover:text-${theme === 'dark' ? 'white' : 'gray-600'} transition-colors`}
+                >
                   Profile
                 </Link>
               )}
@@ -61,10 +68,18 @@ export function Header() {
           <div className="flex items-center space-x-4">
             <button
               onClick={toggleTheme}
-              className="p-2 hover:bg-[#2a2a2a] rounded-lg transition-colors"
+              className={`p-2 rounded-lg transition-colors group ${
+                theme === 'dark' 
+                  ? 'hover:bg-[#2a2a2a]' 
+                  : 'hover:bg-[#8f8f8f]'
+              }`}
               title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
             >
-              {theme === 'dark' ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+              {theme === 'dark' ? (
+                <Sun className="w-5 h-5" />
+              ) : (
+                <Moon className={`w-5 h-5 transition-colors group-hover:text-black`} />
+              )}
             </button>
 
             {user ? (
@@ -75,11 +90,15 @@ export function Header() {
                     alt={user.displayName || 'User'}
                     className="w-8 h-8 rounded-full"
                   />
-                  <span className="hidden md:inline text-gray-200">{user.displayName}</span>
+                  <span className="hidden md:inline">{user.displayName}</span>
                 </div>
                 <button
                   onClick={handleLogout}
-                  className="p-2 hover:bg-[#2a2a2a] rounded-lg transition-colors"
+                  className={`p-2 rounded-lg transition-colors ${
+                    theme === 'dark' 
+                      ? 'hover:bg-[#2a2a2a]' 
+                      : 'hover:bg-gray-100'
+                  }`}
                   title="Sign out"
                 >
                   <LogOut className="w-5 h-5" />
@@ -95,7 +114,11 @@ export function Header() {
             )}
 
             <button
-              className="md:hidden p-2 hover:bg-[#2a2a2a] rounded-lg transition-colors"
+              className={`md:hidden p-2 rounded-lg transition-colors ${
+                theme === 'dark' 
+                  ? 'hover:bg-[#2a2a2a]' 
+                  : 'hover:bg-gray-100'
+              }`}
               title="Menu"
             >
               <Menu className="w-5 h-5" />

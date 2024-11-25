@@ -54,7 +54,7 @@
     @apply border-border;
   }
   body {
-    @apply bg-gradient-to-b from-background to-background/95 text-foreground min-h-screen;
+    @apply bg-gradient-to-br from-[#faf6f1] via-[#fff8f3] to-[#ffffff] text-foreground min-h-screen bg-[length:400%_400%] animate-gradient;
   }
   .dark body {
     @apply bg-gradient-to-br from-[#121212] via-[#151515] to-[#1a1a1a] bg-[length:400%_400%] animate-gradient min-h-screen;
@@ -126,45 +126,39 @@
 }
 
 .prompt-box {
-  @apply bg-[#f5f5f5] rounded-lg p-6 transition-all duration-300;
-}
-
-.dark .prompt-box {
-  @apply bg-black;
-}
-
-.prompt-box:hover {
-  @apply transform scale-[1.02];
-  animation: neonPulse 2s ease-in-out infinite;
-  box-shadow: 0 0 10px rgba(138, 43, 226, 0.2),
-              0 0 20px rgba(138, 43, 226, 0.2),
-              0 0 30px rgba(0, 191, 255, 0.2),
-              0 0 40px rgba(50, 205, 50, 0.2);
-}
-
-.prompt-box {
+  @apply rounded-lg p-6 transition-all duration-300;
   padding: 1rem;
   line-height: 1.8;
   border: 1px solid hsl(var(--border));
-  background-color: hsl(var(--card));
+}
+
+.dark .prompt-box {
+  @apply border-[#2a2a2a];
+}
+
+.prompt-box:hover {
+  @apply transform scale-[1.02] shadow-lg;
+  animation: neonPulse 2s ease-in-out infinite;
+}
+
+.prompt-text {
+  font-family: 'Fira Code', monospace;
+  @apply text-[#00b800] dark:text-[#4ade80];
+}
+
+/* Add custom background for dark mode cards */
+.dark .bg-background-secondary {
+  @apply bg-[#161616];
+}
+
+.dark .border-border {
+  @apply border-[#2a2a2a];
 }
 
 /* Interaction icons animations */
 @keyframes scaleAndRotate {
   0% { transform: scale(1); }
   50% { transform: scale(1.2) rotate(8deg); }
-  100% { transform: scale(1); }
-}
-
-@keyframes bounce {
-  0% { transform: translateY(0); }
-  50% { transform: translateY(-4px); }
-  100% { transform: translateY(0); }
-}
-
-@keyframes pulse {
-  0% { transform: scale(1); }
-  50% { transform: scale(1.2); }
   100% { transform: scale(1); }
 }
 
@@ -190,6 +184,18 @@
 
 .prompt-box .bookmark:not(.saved):hover {
   color: hsl(var(--primary));
+}
+
+@keyframes bounce {
+  0% { transform: translateY(0); }
+  50% { transform: translateY(-4px); }
+  100% { transform: translateY(0); }
+}
+
+@keyframes pulse {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.2); }
+  100% { transform: scale(1); }
 }
 
 /* Dropdown styles */
@@ -275,3 +281,5 @@ select option {
     font-size: 16px !important;
   }
 }
+
+@import url('https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600&display=swap');
