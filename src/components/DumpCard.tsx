@@ -1,12 +1,15 @@
 import React, { useState, useEffect } from 'react'
-import { MessageSquare, ThumbsUp, Share2, Bookmark, Trash2 } from 'lucide-react'
+import { MessageSquare, ThumbsUp, Share2, Bookmark, Trash2, Edit } from 'lucide-react'
 import { CategoryOption } from './SearchAndSort'
+import { getFirestore, collection, query, where, getDocs, addDoc, deleteDoc, doc, updateDoc } from 'firebase/firestore'
+import { useAuth } from '../contexts/AuthContext'
 
 export interface Dump {
   id: string
   title: string
   prompt: string
   author: {
+    id?: string
     name: string
     avatar: string
   }
@@ -20,37 +23,104 @@ export interface Dump {
 interface DumpCardProps {
   dump: Dump
   onDelete?: (id: string) => void
+  onEdit?: (dump: Dump) => void
+  isEditable?: boolean
 }
 
-export function DumpCard({ dump, onDelete }: DumpCardProps) {
+export function DumpCard({ dump, onDelete, onEdit, isEditable }: DumpCardProps) {
   const [isSaved, setIsSaved] = useState(false);
+  const [saveId, setSaveId] = useState<string | null>(null);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editedTitle, setEditedTitle] = useState(dump.title);
+  const [editedPrompt, setEditedPrompt] = useState(dump.prompt);
+  const { user } = useAuth();
+  const db = getFirestore();
 
   useEffect(() => {
-    const savedDumps = JSON.parse(localStorage.getItem('savedDumps') || '[]');
-    setIsSaved(savedDumps.some((saved: Dump) => saved.id === dump.id));
-  }, [dump.id]);
+    const checkIfSaved = async () => {
+      if (!user) return;
 
-  const handleSave = () => {
-    const newSavedState = !isSaved;
-    setIsSaved(newSavedState);
-    
-    const savedDumps = JSON.parse(localStorage.getItem('savedDumps') || '[]');
-    
-    if (newSavedState) {
-      if (!savedDumps.some((saved: Dump) => saved.id === dump.id)) {
-        savedDumps.push(dump);
+      try {
+        const savedPromptsRef = collection(db, 'savedPrompts');
+        const q = query(
+          savedPromptsRef,
+          where('userId', '==', user.uid),
+          where('promptId', '==', dump.id)
+        );
+
+        const querySnapshot = await getDocs(q);
+        const saved = !querySnapshot.empty;
+        setIsSaved(saved);
+        if (saved) {
+          setSaveId(querySnapshot.docs[0].id);
+        }
+      } catch (error) {
+        console.error('Error checking if prompt is saved:', error);
       }
-    } else {
-      const updatedDumps = savedDumps.filter((saved: Dump) => saved.id !== dump.id);
-      localStorage.setItem('savedDumps', JSON.stringify(updatedDumps));
+    };
+
+    checkIfSaved();
+  }, [user, dump.id, db]);
+
+  const handleSave = async () => {
+    if (!user) {
+      console.error('User must be logged in to save prompts');
       return;
     }
-    
-    localStorage.setItem('savedDumps', JSON.stringify(savedDumps));
+
+    try {
+      if (isSaved && saveId) {
+        // Unsave the prompt
+        await deleteDoc(doc(db, 'savedPrompts', saveId));
+        setIsSaved(false);
+        setSaveId(null);
+      } else {
+        // Save the prompt
+        const savedPromptRef = await addDoc(collection(db, 'savedPrompts'), {
+          userId: user.uid,
+          promptId: dump.id,
+          savedAt: new Date().toISOString()
+        });
+        setIsSaved(true);
+        setSaveId(savedPromptRef.id);
+      }
+    } catch (error) {
+      console.error('Error saving/unsaving prompt:', error);
+    }
+  };
+
+  const handleEdit = async () => {
+    if (!user || user.uid !== dump.author.id) {
+      console.error('Not authorized to edit this prompt');
+      return;
+    }
+
+    if (isEditing) {
+      try {
+        const promptRef = doc(db, 'prompts', dump.id);
+        await updateDoc(promptRef, {
+          title: editedTitle,
+          prompt: editedPrompt,
+          updatedAt: new Date().toISOString()
+        });
+        setIsEditing(false);
+        if (onEdit) {
+          onEdit({
+            ...dump,
+            title: editedTitle,
+            prompt: editedPrompt
+          });
+        }
+      } catch (error) {
+        console.error('Error updating prompt:', error);
+      }
+    } else {
+      setIsEditing(true);
+    }
   };
 
   return (
-    <div className="prompt-box">
+    <div className="bg-background-secondary p-6 rounded-lg transition-all duration-200 hover:scale-[1.02] hover:shadow-lg">
       <div className="flex items-center space-x-3 mb-4">
         <img
           src={dump.author.avatar}
@@ -65,14 +135,32 @@ export function DumpCard({ dump, onDelete }: DumpCardProps) {
         </div>
       </div>
       
-      <h2 className="text-xl font-bold mb-2">{dump.title}</h2>
-      <p className="text-foreground-secondary mb-4 line-clamp-3">{dump.prompt}</p>
+      {isEditing ? (
+        <div className="mb-4">
+          <input
+            type="text"
+            value={editedTitle}
+            onChange={(e) => setEditedTitle(e.target.value)}
+            className="w-full px-3 py-2 mb-2 bg-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+          />
+          <textarea
+            value={editedPrompt}
+            onChange={(e) => setEditedPrompt(e.target.value)}
+            className="w-full px-3 py-2 bg-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary min-h-[100px]"
+          />
+        </div>
+      ) : (
+        <>
+          <h2 className="text-xl font-bold mb-2">{dump.title}</h2>
+          <p className="text-foreground-secondary mb-4 line-clamp-3">{dump.prompt}</p>
+        </>
+      )}
       
       <div className="flex flex-wrap gap-2 mb-4">
         {dump.tags.map(tag => (
           <span
             key={tag}
-            className="px-2 py-1 bg-background-secondary-hover rounded-full text-sm text-foreground-secondary"
+            className="px-2 py-1 bg-background rounded-full text-sm text-foreground-secondary"
           >
             #{tag}
           </span>
@@ -89,7 +177,7 @@ export function DumpCard({ dump, onDelete }: DumpCardProps) {
           <span>{dump.comments}</span>
         </button>
         <button 
-          className="p-2 transition-all duration-200 active:scale-95 touch-manipulation"
+          className="p-2 transition-all duration-200 active:scale-95 touch-manipulation hover:text-primary"
           onClick={() => navigator.clipboard.writeText(dump.prompt)}
           title="Copy prompt"
         >
@@ -104,9 +192,18 @@ export function DumpCard({ dump, onDelete }: DumpCardProps) {
             fill={isSaved ? "currentColor" : "none"}
           />
         </button>
-        {onDelete && (
+        {isEditable && user?.uid === dump.author.id && (
           <button 
-            className="p-2 transition-all duration-200 active:scale-95 touch-manipulation"
+            className="p-2 transition-all duration-200 active:scale-95 touch-manipulation hover:text-primary"
+            onClick={handleEdit}
+            title={isEditing ? "Save changes" : "Edit prompt"}
+          >
+            <Edit className="w-4 h-4" />
+          </button>
+        )}
+        {onDelete && user?.uid === dump.author.id && (
+          <button 
+            className="p-2 transition-all duration-200 active:scale-95 touch-manipulation hover:text-red-500"
             onClick={() => onDelete(dump.id)}
             title="Delete prompt"
           >
