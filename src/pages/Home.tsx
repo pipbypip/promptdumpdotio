@@ -63,18 +63,11 @@ export function Home() {
                 <div className="flex space-x-4">
                   <Link
                     to="/feed"
-                    className="bg-primary hover:bg-accent text-white px-6 py-3 rounded-lg font-medium transform transition hover:scale-105 inline-flex items-center"
+                    className="w-full bg-primary hover:bg-accent text-white px-6 py-3 rounded-lg font-medium transform transition hover:scale-105 inline-flex items-center justify-center"
                   >
                     <Sparkles className="w-5 h-5 mr-2" />
-                    Dump Feed
+                    Explore Prompts
                   </Link>
-                  <button
-                    onClick={() => setIsModalOpen(true)}
-                    className="bg-background-secondary hover:bg-background-secondary-hover text-foreground px-6 py-3 rounded-lg font-medium transform transition hover:scale-105 inline-flex items-center"
-                  >
-                    <Share2 className="w-5 h-5 mr-2" />
-                    Share Prompt
-                  </button>
                 </div>
               </div>
 

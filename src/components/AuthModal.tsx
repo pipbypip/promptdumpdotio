@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import { X } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
+import googleLogo from '../assets/google-logo.svg'
+import microsoftLogo from '../assets/microsoft-logo.svg'
 
 interface AuthModalProps {
   isOpen: boolean
@@ -182,16 +184,18 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
                   <button
                     type="button"
                     onClick={handleGoogleSignIn}
-                    className="w-full py-2 mb-2 bg-background-secondary hover:bg-background-secondary/80 border border-border rounded-lg transition-colors"
+                    className="w-full py-2 px-4 mb-2 bg-background-secondary hover:bg-background-secondary/80 border border-border rounded-lg transition-colors flex items-center justify-center gap-2"
                   >
+                    <img src={googleLogo} alt="Google logo" className="w-5 h-5" />
                     Sign in with Google
                   </button>
 
                   <button
                     type="button"
                     onClick={handleMicrosoftSignIn}
-                    className="w-full py-2 bg-background-secondary hover:bg-background-secondary/80 border border-border rounded-lg transition-colors"
+                    className="w-full py-2 px-4 bg-background-secondary hover:bg-background-secondary/80 border border-border rounded-lg transition-colors flex items-center justify-center gap-2"
                   >
+                    <img src={microsoftLogo} alt="Microsoft logo" className="w-5 h-5" />
                     Sign in with Microsoft
                   </button>
                 </>

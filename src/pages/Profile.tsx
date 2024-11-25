@@ -1,12 +1,13 @@
 import { useState, useMemo, useEffect } from 'react'
-import { Sparkles, Star, MessageCircle, Share2, Settings as SettingsIcon, Edit3, PlusCircle, Copy, Check, Trash2 } from 'lucide-react'
+import { Sparkles, Star, MessageCircle, Share2, Settings as SettingsIcon, Edit3, PlusCircle, Copy, Check, Trash2, LogOut } from 'lucide-react'
 import { SearchAndSort, type SortOption, type CategoryOption } from '../components/SearchAndSort'
 import { PromptModal } from '../components/PromptModal'
 import { DumpCard, type Dump } from '../components/DumpCard'
 import { Settings } from '../components/Settings'
 import { getAuth } from 'firebase/auth'
-import { getFirestore, doc, updateDoc, collection, addDoc, query, where, orderBy, getDocs, writeBatch, getDoc } from 'firebase/firestore'
+import { getFirestore, doc, updateDoc, collection, addDoc, query, where, orderBy, getDocs, writeBatch, getDoc, deleteDoc, setDoc } from 'firebase/firestore'
 import { Link } from 'react-router-dom'
+import { useAuth } from '../contexts/AuthContext'
 
 interface Prompt {
   id: string
@@ -33,6 +34,12 @@ interface Dump {
   category?: CategoryOption
 }
 
+interface ChangeHistory {
+  type: 'delete' | 'edit';
+  prompt: Dump;
+  previousState?: Dump;
+}
+
 export function Profile() {
   console.log('Profile component rendering');  // Debug log
   const [prompts, setPrompts] = useState<Dump[]>([])
@@ -47,12 +54,13 @@ export function Profile() {
   const [copiedId, setCopiedId] = useState<string | null>(null)
   const [activeTab, setActiveTab] = useState<'my-dumps' | 'saved-dumps'>('my-dumps')
   const [savedDumps, setSavedDumps] = useState<Dump[]>([])
-  const [editingInlinePrompt, setEditingInlinePrompt] = useState<string | null>(null);
-  const [inlineTitle, setInlineTitle] = useState('');
-  const [inlineContent, setInlineContent] = useState('');
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [deletedPrompts, setDeletedPrompts] = useState<Dump[]>([])
+  const [editingInlinePrompt, setEditingInlinePrompt] = useState<string | null>(null)
+  const [inlineTitle, setInlineTitle] = useState('')
+  const [inlineContent, setInlineContent] = useState('')
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [changeHistory, setChangeHistory] = useState<ChangeHistory[]>([])
+  const { logout } = useAuth()
 
   // Get current user
   const auth = getAuth()
@@ -352,12 +360,45 @@ export function Profile() {
     setIsModalOpen(false);
   }
 
-  const handleEdit = (updatedDump: Dump) => {
-    setPrompts(prevPrompts => 
-      prevPrompts.map(prompt => 
-        prompt.id === updatedDump.id ? updatedDump : prompt
-      )
-    );
+  const handleEdit = async (updatedDump: Dump) => {
+    try {
+      const originalDump = prompts.find(p => p.id === updatedDump.id);
+      if (!originalDump) return;
+
+      // Add to history before making the change
+      setChangeHistory(current => [{
+        type: 'edit',
+        prompt: updatedDump,
+        previousState: originalDump
+      }, ...current]);
+
+      setPrompts(prevPrompts => 
+        prevPrompts.map(prompt => 
+          prompt.id === updatedDump.id ? updatedDump : prompt
+        )
+      );
+
+      // Update in Firebase
+      const db = getFirestore();
+      const promptRef = doc(db, 'prompts', updatedDump.id);
+      await updateDoc(promptRef, {
+        title: updatedDump.title,
+        prompt: updatedDump.prompt,
+        category: updatedDump.category
+      });
+    } catch (error) {
+      console.error('Error updating prompt:', error);
+      // Revert the change on error
+      if (changeHistory.length > 0) {
+        const lastChange = changeHistory[0];
+        if (lastChange.previousState) {
+          setPrompts(current => 
+            current.map(p => p.id === lastChange.prompt.id ? lastChange.previousState! : p)
+          );
+        }
+        setChangeHistory(current => current.slice(1));
+      }
+    }
   };
 
   const handleCopy = async (prompt: Dump) => {
@@ -392,51 +433,78 @@ export function Profile() {
     setEditingInlinePrompt(null);
   };
 
-  const handleDelete = (promptToDelete: Dump) => {
-    setPrompts(currentPrompts => currentPrompts.filter(p => p.id !== promptToDelete.id))
-    setDeletedPrompts(current => [promptToDelete, ...current])
-    
-    // Update Firebase
-    const db = getFirestore();
-    const promptRef = doc(db, 'prompts', promptToDelete.id);
-    updateDoc(promptRef, {
-      isDeleted: true,
-    });
-  }
+  const handleDelete = async (promptId: string) => {
+    try {
+      const promptToDelete = prompts.find(p => p.id === promptId);
+      if (!promptToDelete) return;
+
+      // Add to history before deleting
+      setChangeHistory(current => [{
+        type: 'delete',
+        prompt: promptToDelete
+      }, ...current]);
+
+      // Update UI optimistically
+      setPrompts(currentPrompts => currentPrompts.filter(p => p.id !== promptId));
+
+      // Delete from Firebase
+      const db = getFirestore();
+      const promptRef = doc(db, 'prompts', promptId);
+      await deleteDoc(promptRef);
+
+      console.log('Prompt deleted successfully:', promptId);
+    } catch (error) {
+      console.error('Error deleting prompt:', error);
+      // Revert the optimistic update on error
+      const lastChange = changeHistory[0];
+      if (lastChange && lastChange.type === 'delete') {
+        setPrompts(current => [...current, lastChange.prompt]);
+        setChangeHistory(current => current.slice(1));
+      }
+    }
+  };
 
   const handleUndo = async () => {
-    if (!user || deletedPrompts.length === 0) return;
+    if (changeHistory.length === 0) return;
 
     try {
+      const lastChange = changeHistory[0];
       const db = getFirestore();
-      const [lastDeleted, ...remainingDeleted] = deletedPrompts;
-      
-      const promptData = {
-        title: lastDeleted.title,
-        prompt: lastDeleted.prompt,
-        author: {
-          id: user.uid,
-          name: user.displayName || 'Anonymous',
-          avatar: user.photoURL || `https://api.dicebear.com/7.x/pixel-art/svg?seed=${user.uid}`
-        },
-        likes: lastDeleted.likes,
-        comments: lastDeleted.comments,
-        tags: lastDeleted.tags,
-        createdAt: new Date().toISOString(),
-        category: lastDeleted.category,
-        type: lastDeleted.type
-      };
 
-      const docRef = await addDoc(collection(db, 'prompts'), promptData);
-      const newDump: Dump = {
-        id: docRef.id,
-        ...promptData
-      };
+      if (lastChange.type === 'delete') {
+        // Restore deleted prompt
+        const promptRef = doc(db, 'prompts', lastChange.prompt.id);
+        await setDoc(promptRef, {
+          title: lastChange.prompt.title,
+          prompt: lastChange.prompt.prompt,
+          author: lastChange.prompt.author,
+          likes: lastChange.prompt.likes,
+          comments: lastChange.prompt.comments,
+          tags: lastChange.prompt.tags,
+          createdAt: lastChange.prompt.createdAt,
+          category: lastChange.prompt.category,
+          isPublic: true
+        });
 
-      setPrompts(prevPrompts => [newDump, ...prevPrompts]);
-      setDeletedPrompts(remainingDeleted);
+        setPrompts(current => [lastChange.prompt, ...current]);
+      } else if (lastChange.type === 'edit' && lastChange.previousState) {
+        // Revert edited prompt
+        const promptRef = doc(db, 'prompts', lastChange.prompt.id);
+        await updateDoc(promptRef, {
+          title: lastChange.previousState.title,
+          prompt: lastChange.previousState.prompt,
+          category: lastChange.previousState.category
+        });
+
+        setPrompts(current => 
+          current.map(p => p.id === lastChange.prompt.id ? lastChange.previousState! : p)
+        );
+      }
+
+      // Remove the undone change from history
+      setChangeHistory(current => current.slice(1));
     } catch (error) {
-      console.error('Error restoring prompt:', error);
+      console.error('Error undoing change:', error);
     }
   };
 
@@ -494,28 +562,35 @@ export function Profile() {
       )}
 
       {/* Profile Header */}
-      <div className="flex items-center justify-between mb-8">
+      <div className="flex justify-between items-center mb-8">
         <div className="flex items-center space-x-4">
           <img
-            src={user?.photoURL || `https://api.dicebear.com/7.x/pixel-art/svg?seed=${user?.uid || 'anonymous'}`}
-            alt={user?.displayName || 'Anonymous'}
+            src={user?.photoURL || `https://api.dicebear.com/7.x/pixel-art/svg?seed=${user?.uid}`}
+            alt="Profile"
             className="w-16 h-16 rounded-full"
           />
           <div>
-            <h1 className="text-2xl font-bold">{user?.displayName || 'Anonymous'}</h1>
+            <h1 className="text-2xl font-bold">{user?.displayName || 'User'}</h1>
             {isEditing ? (
               <input
                 type="text"
                 value={bio}
                 onChange={(e) => setBio(e.target.value)}
-                className="mt-1 px-2 py-1 bg-background-secondary rounded"
+                className="mt-1 p-1 border rounded"
               />
             ) : (
-              <p className="text-foreground-secondary">{bio}</p>
+              <p className="text-gray-600">{bio}</p>
             )}
           </div>
         </div>
         <div className="flex items-center space-x-2">
+          <button
+            onClick={() => setIsEditing(!isEditing)}
+            className="flex items-center px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary"
+          >
+            <Edit3 className="w-4 h-4 mr-2" />
+            {isEditing ? 'Save Profile' : 'Edit Profile'}
+          </button>
           <button
             onClick={() => setIsModalOpen(true)}
             className="flex items-center space-x-2 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors"
@@ -530,17 +605,26 @@ export function Profile() {
           >
             <SettingsIcon className="w-5 h-5" />
           </button>
+          <button
+            onClick={() => logout()}
+            className="flex items-center px-4 py-2 text-sm font-medium text-red-700 bg-white border border-red-300 rounded-md hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+          >
+            <LogOut className="w-4 h-4 mr-2" />
+            Sign Out
+          </button>
         </div>
       </div>
 
       {/* Search and Sort */}
       <SearchAndSort
-        searchQuery={searchQuery}
-        setSearchQuery={setSearchQuery}
-        sortBy={sortBy}
-        setSortBy={setSortBy}
-        category={category}
-        setCategory={setCategory}
+        onSearch={setSearchQuery}
+        onSortChange={setSortBy}
+        onCategoryChange={setCategory}
+        onUndo={handleUndo}
+        canUndo={changeHistory.length > 0}
+        sortValue={sortBy}
+        categoryValue={category}
+        searchValue={searchQuery}
       />
 
       {/* Tabs */}
@@ -587,7 +671,7 @@ export function Profile() {
               <DumpCard
                 key={prompt.id}
                 dump={prompt}
-                onDelete={handleDelete}
+                onDelete={() => handleDelete(prompt.id)}
                 onEdit={handleEdit}
                 isEditable={true}
               />

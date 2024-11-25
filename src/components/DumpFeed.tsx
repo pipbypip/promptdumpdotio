@@ -231,7 +231,7 @@ export function DumpFeed() {
       <div className="max-w-4xl mx-auto">
         <div className="flex flex-col gap-6">
           <div className="flex justify-between items-center">
-            <h1 className="text-2xl font-bold">LIVE Dump Feed</h1>
+            <h1 className="text-2xl font-bold">Dump Feed</h1>
             <button
               onClick={() => setIsModalOpen(true)}
               className="bg-primary hover:bg-accent text-white px-4 py-2 rounded-lg font-medium transform transition hover:scale-105 inline-flex items-center gap-2"

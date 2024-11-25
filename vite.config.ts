@@ -11,6 +11,16 @@ export default defineConfig({
   },
   build: {
     outDir: 'dist',
-    sourcemap: true
+    sourcemap: true,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          vendor: ['react', 'react-dom'],
+        }
+      }
+    },
+    chunkSizeWarningLimit: 1000,
+    minify: 'esbuild',
+    cssMinify: true,
   }
 })

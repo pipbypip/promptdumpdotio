@@ -73,7 +73,13 @@ export function PromptDemo() {
       initial={{ opacity: 0, x: 50 }}
       animate={{ opacity: 1, x: 0 }}
       transition={{ duration: 0.5 }}
-      className="w-full max-w-md p-6 bg-[#1a1a1a] border border-[#2a2a2a] rounded-lg shadow-lg relative z-10"
+      className="w-full max-w-md p-6 bg-[#1a1a1a] border border-[#2a2a2a] rounded-lg shadow-lg relative z-10 overflow-hidden"
+      style={{
+        WebkitTapHighlightColor: 'transparent',
+        WebkitTouchCallout: 'none',
+        WebkitUserSelect: 'none',
+        userSelect: 'none'
+      }}
     >
       <div className="space-y-4">
         {/* Title Input */}
@@ -83,8 +89,9 @@ export function PromptDemo() {
             type="text"
             value={typedTitle}
             readOnly
-            className="w-full p-2 bg-[#2a2a2a] text-white rounded-lg border border-[#3a3a3a]"
+            className="w-full p-2 bg-[#2a2a2a] text-white rounded-lg border border-[#3a3a3a] appearance-none"
             placeholder="Enter a title..."
+            style={{ WebkitAppearance: 'none' }}
           />
         </div>
 
@@ -98,7 +105,8 @@ export function PromptDemo() {
           <select
             value={demoPrompt.category}
             readOnly
-            className="w-full p-2 bg-[#2a2a2a] text-white rounded-lg border border-[#3a3a3a]"
+            className="w-full p-2 bg-[#2a2a2a] text-white rounded-lg border border-[#3a3a3a] appearance-none"
+            style={{ WebkitAppearance: 'none' }}
           >
             <option value={demoPrompt.category}>{demoPrompt.category}</option>
           </select>
@@ -111,8 +119,9 @@ export function PromptDemo() {
             value={typedPrompt}
             readOnly
             rows={6}
-            className="w-full p-2 bg-[#2a2a2a] text-white rounded-lg border border-[#3a3a3a] resize-none"
+            className="w-full p-2 bg-[#2a2a2a] text-white rounded-lg border border-[#3a3a3a] resize-none appearance-none"
             placeholder="Enter your prompt..."
+            style={{ WebkitAppearance: 'none' }}
           />
         </div>
 
@@ -123,7 +132,13 @@ export function PromptDemo() {
           transition={{ duration: 0.3 }}
           className="flex justify-end"
         >
-          <button className="matrix-gradient px-4 py-2 rounded-lg font-medium">
+          <button 
+            className="matrix-gradient px-4 py-2 rounded-lg font-medium"
+            style={{ 
+              WebkitTapHighlightColor: 'transparent',
+              WebkitTouchCallout: 'none'
+            }}
+          >
             Save Prompt
           </button>
         </motion.div>

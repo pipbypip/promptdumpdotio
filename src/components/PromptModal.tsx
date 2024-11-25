@@ -1,46 +1,60 @@
 import React, { useState, useEffect } from 'react'
 import { X } from 'lucide-react'
+import { categoryData } from '../pages/CategoryPage'
 
 interface PromptModalProps {
   isOpen: boolean
   onClose: () => void
   onSave: (prompt: { title: string; content: string; type: string }) => void
-  initialPrompt?: { title: string; content: string; type: string } | null
+  initialPrompt?: {
+    title: string
+    content: string
+    type: string
+  }
+  initialCategory?: string
 }
 
-export function PromptModal({ isOpen, onClose, onSave, initialPrompt }: PromptModalProps) {
+// Flatten category data into options for the select element
+const categoryOptions = Object.values(categoryData).flatMap(category =>
+  category.subcategories.map(subcategory => ({
+    value: subcategory,
+    label: subcategory,
+    group: category.title
+  }))
+);
+
+export function PromptModal({ 
+  isOpen, 
+  onClose, 
+  onSave, 
+  initialPrompt,
+  initialCategory 
+}: PromptModalProps) {
   const [title, setTitle] = useState('')
   const [content, setContent] = useState('')
-  const [type, setType] = useState('general')
+  const [type, setType] = useState('')
 
-  const promptTypes = [
-    { value: 'general', label: 'General' },
-    { value: 'coding', label: 'Coding' },
-    { value: 'writing', label: 'Writing' },
-    { value: 'creative', label: 'Creative' },
-    { value: 'business', label: 'Business' },
-    { value: 'academic', label: 'Academic' },
-  ]
-
-  // Update form when editing an existing prompt
+  // Update form when editing an existing prompt or when initialCategory is provided
   useEffect(() => {
     if (initialPrompt) {
       setTitle(initialPrompt.title)
       setContent(initialPrompt.content)
-      setType(initialPrompt.type || 'general')
+      setType(initialPrompt.type || '')
+    } else if (initialCategory) {
+      setType(initialCategory)
     } else {
       setTitle('')
       setContent('')
-      setType('general')
+      setType('')
     }
-  }, [initialPrompt])
+  }, [initialPrompt, initialCategory])
 
   const handleSave = () => {
     if (title.trim() && content.trim()) {
       onSave({ title, content, type })
       setTitle('')
       setContent('')
-      setType('general')
+      setType('')
     }
   }
 
@@ -54,7 +68,7 @@ export function PromptModal({ isOpen, onClose, onSave, initialPrompt }: PromptMo
       >
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-xl font-bold">
-            {initialPrompt ? 'Edit Prompt' : 'Dump New Prompt'}
+            {initialPrompt ? 'Edit Prompt' : 'Create New Prompt'}
           </h2>
           <button
             onClick={onClose}
@@ -81,18 +95,24 @@ export function PromptModal({ isOpen, onClose, onSave, initialPrompt }: PromptMo
 
           <div>
             <label htmlFor="type" className="block text-sm font-medium mb-1">
-              Type
+              Category
             </label>
             <select
               id="type"
               value={type}
               onChange={(e) => setType(e.target.value)}
-              className="w-full px-3 py-2 bg-background-secondary border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+              disabled={!!initialCategory}
+              className="w-full px-3 py-2 bg-background-secondary border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {promptTypes.map((promptType) => (
-                <option key={promptType.value} value={promptType.value}>
-                  {promptType.label}
-                </option>
+              <option value="">Select a category</option>
+              {Object.values(categoryData).map(category => (
+                <optgroup key={category.title} label={category.title}>
+                  {category.subcategories.map(subcategory => (
+                    <option key={subcategory} value={subcategory}>
+                      {subcategory}
+                    </option>
+                  ))}
+                </optgroup>
               ))}
             </select>
           </div>
@@ -120,10 +140,10 @@ export function PromptModal({ isOpen, onClose, onSave, initialPrompt }: PromptMo
             </button>
             <button
               onClick={handleSave}
-              disabled={!title.trim() || !content.trim()}
+              disabled={!title.trim() || !content.trim() || !type}
               className="px-4 py-2 bg-primary hover:bg-accent text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {initialPrompt ? 'Save Changes' : 'Save Prompt'}
+              {initialPrompt ? 'Save Changes' : 'Create Prompt'}
             </button>
           </div>
         </div>

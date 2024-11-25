@@ -1,0 +1,51 @@
+{
+  "name": "PromptDump.io",
+  "short_name": "PromptDump",
+  "description": "Level up your prompt game with promptdump.io - The retro-inspired prompt management system",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#2d2f32",
+  "theme_color": "#2d2f32",
+  "icons": [
+    {
+      "src": "/favicon-16x16.png",
+      "sizes": "16x16",
+      "type": "image/png"
+    },
+    {
+      "src": "/favicon-32x32.png",
+      "sizes": "32x32",
+      "type": "image/png"
+    },
+    {
+      "src": "/apple-touch-icon.png",
+      "sizes": "180x180",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/logo.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Create New Prompt",
+      "short_name": "New Prompt",
+      "description": "Create a new prompt",
+      "url": "/new",
+      "icons": [{ "src": "/favicon-32x32.png", "sizes": "32x32" }]
+    },
+    {
+      "name": "Explore Prompts",
+      "short_name": "Explore",
+      "description": "Discover new prompts",
+      "url": "/explore",
+      "icons": [{ "src": "/favicon-32x32.png", "sizes": "32x32" }]
+    }
+  ]
+}

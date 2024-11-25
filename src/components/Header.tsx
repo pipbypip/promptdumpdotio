@@ -10,13 +10,19 @@ export function Header() {
   const { user, logout } = useAuth()
   const { theme, toggleTheme } = useTheme()
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false)
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
 
   const handleLogout = async () => {
     try {
       await logout()
+      setIsMobileMenuOpen(false)
     } catch (error) {
       console.error('Failed to log out:', error)
     }
+  }
+
+  const handleNavClick = () => {
+    setIsMobileMenuOpen(false)
   }
 
   return (
@@ -41,6 +47,12 @@ export function Header() {
                 className={`hover:text-${theme === 'dark' ? 'white' : 'gray-600'} transition-colors`}
               >
                 Dump Feed
+              </Link>
+              <Link
+                to="/categories"
+                className={`hover:text-${theme === 'dark' ? 'white' : 'gray-600'} transition-colors`}
+              >
+                Categories
               </Link>
               <Link
                 to="/explore"
@@ -68,10 +80,10 @@ export function Header() {
           <div className="flex items-center space-x-4">
             <button
               onClick={toggleTheme}
-              className={`p-2 rounded-lg transition-colors group ${
+              className={`p-2 rounded-lg transition-colors ${
                 theme === 'dark' 
                   ? 'hover:bg-[#2a2a2a]' 
-                  : 'hover:bg-[#8f8f8f]'
+                  : 'hover:bg-gray-100'
               }`}
               title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
             >
@@ -114,6 +126,7 @@ export function Header() {
             )}
 
             <button
+              onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
               className={`md:hidden p-2 rounded-lg transition-colors ${
                 theme === 'dark' 
                   ? 'hover:bg-[#2a2a2a]' 
@@ -124,6 +137,61 @@ export function Header() {
               <Menu className="w-5 h-5" />
             </button>
           </div>
+        </div>
+
+        {/* Mobile Menu */}
+        <div
+          className={`md:hidden absolute top-16 left-0 right-0 bg-[#1f2329] border-b border-[#3a3a3a] transition-all duration-300 ${
+            isMobileMenuOpen
+              ? 'opacity-100 translate-y-0'
+              : 'opacity-0 -translate-y-2 pointer-events-none'
+          }`}
+        >
+          <nav className="container max-w-6xl mx-auto px-4 py-4 flex flex-col space-y-4">
+            <Link
+              to={user ? "/feed" : "#"}
+              onClick={(e) => {
+                if (!user) {
+                  e.preventDefault();
+                  setIsAuthModalOpen(true);
+                }
+                handleNavClick();
+              }}
+              className="hover:text-white transition-colors"
+            >
+              Dump Feed
+            </Link>
+            <Link
+              to="/categories"
+              onClick={handleNavClick}
+              className="hover:text-white transition-colors"
+            >
+              Categories
+            </Link>
+            <Link
+              to="/explore"
+              onClick={handleNavClick}
+              className="hover:text-white transition-colors"
+            >
+              Explore
+            </Link>
+            <Link
+              to="/about"
+              onClick={handleNavClick}
+              className="hover:text-white transition-colors"
+            >
+              About
+            </Link>
+            {user && (
+              <Link 
+                to="/profile"
+                onClick={handleNavClick}
+                className="hover:text-white transition-colors"
+              >
+                Profile
+              </Link>
+            )}
+          </nav>
         </div>
       </header>
       <AuthModal isOpen={isAuthModalOpen} onClose={() => setIsAuthModalOpen(false)} />

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { MessageSquare, ThumbsUp, Share2, Bookmark, Trash2, Edit, Check, Copy, Edit2 } from 'lucide-react'
 import { CategoryOption } from './SearchAndSort'
 import { getFirestore, collection, query, where, getDocs, addDoc, deleteDoc, doc, updateDoc } from 'firebase/firestore'
@@ -34,8 +34,10 @@ export function DumpCard({ dump, onDelete, onEdit, isEditable }: DumpCardProps) 
   const [editedTitle, setEditedTitle] = useState(dump.title);
   const [editedPrompt, setEditedPrompt] = useState(dump.prompt);
   const [copied, setCopied] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const { user } = useAuth();
   const db = getFirestore();
+  const cardRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const checkIfSaved = async () => {
@@ -62,6 +64,19 @@ export function DumpCard({ dump, onDelete, onEdit, isEditable }: DumpCardProps) 
 
     checkIfSaved();
   }, [user, dump.id, db]);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (isEditing && cardRef.current && !cardRef.current.contains(event.target as Node)) {
+        handleSaveEdit();
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isEditing, editedTitle, editedPrompt]);
 
   const handleSave = async () => {
     if (!user) {
@@ -90,34 +105,16 @@ export function DumpCard({ dump, onDelete, onEdit, isEditable }: DumpCardProps) 
     }
   };
 
-  const handleEdit = async () => {
-    if (!user || user.uid !== dump.author.id) {
-      console.error('Not authorized to edit this prompt');
-      return;
+  const handleSaveEdit = async () => {
+    if (onEdit && (editedTitle !== dump.title || editedPrompt !== dump.prompt)) {
+      const updatedDump = {
+        ...dump,
+        title: editedTitle,
+        prompt: editedPrompt,
+      };
+      onEdit(updatedDump);
     }
-
-    if (isEditing) {
-      try {
-        const promptRef = doc(db, 'prompts', dump.id);
-        await updateDoc(promptRef, {
-          title: editedTitle,
-          prompt: editedPrompt,
-          updatedAt: new Date().toISOString()
-        });
-        setIsEditing(false);
-        if (onEdit) {
-          onEdit({
-            ...dump,
-            title: editedTitle,
-            prompt: editedPrompt
-          });
-        }
-      } catch (error) {
-        console.error('Error updating prompt:', error);
-      }
-    } else {
-      setIsEditing(true);
-    }
+    setIsEditing(false);
   };
 
   const handleCopy = async () => {
@@ -130,8 +127,36 @@ export function DumpCard({ dump, onDelete, onEdit, isEditable }: DumpCardProps) 
     }
   };
 
+  const handleDelete = async () => {
+    if (!user) {
+      console.error('User must be logged in to delete prompts');
+      return;
+    }
+
+    try {
+      setIsDeleting(true);
+      const db = getFirestore();
+      const promptRef = doc(db, 'prompts', dump.id);
+      await deleteDoc(promptRef);
+      onDelete?.(dump.id);
+    } catch (error) {
+      console.error('Error deleting prompt:', error);
+      setIsDeleting(false);
+    }
+  };
+
   return (
-    <div className="bg-[#e7e7e7] dark:bg-black p-6 rounded-lg transition-all duration-300 hover:scale-[1.02] hover:shadow-lg prompt-box">
+    <div 
+      ref={cardRef} 
+      className={`bg-[#e7e7e7] dark:bg-black p-6 rounded-lg transition-all duration-300 ${
+        isDeleting 
+          ? 'opacity-0 scale-95 pointer-events-none' 
+          : 'hover:scale-[1.02] hover:shadow-lg'
+      } prompt-box`}
+      style={{
+        transform: isDeleting ? 'translateX(-20px)' : 'translateX(0)',
+      }}
+    >
       <div className="flex items-center space-x-3 mb-4">
         <img
           src={dump.author.avatar}
@@ -147,17 +172,17 @@ export function DumpCard({ dump, onDelete, onEdit, isEditable }: DumpCardProps) 
       </div>
       
       {isEditing ? (
-        <div className="mb-4">
+        <div className="space-y-4">
           <input
             type="text"
             value={editedTitle}
             onChange={(e) => setEditedTitle(e.target.value)}
-            className="w-full px-3 py-2 mb-2 bg-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+            className="w-full bg-background border border-border rounded-lg p-2 text-lg font-semibold"
           />
           <textarea
             value={editedPrompt}
             onChange={(e) => setEditedPrompt(e.target.value)}
-            className="w-full px-3 py-2 bg-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary min-h-[100px]"
+            className="w-full bg-background border border-border rounded-lg p-2 min-h-[100px]"
           />
         </div>
       ) : (
@@ -177,22 +202,26 @@ export function DumpCard({ dump, onDelete, onEdit, isEditable }: DumpCardProps) 
           </span>
         ))}
       </div>
-      
-      <div className="flex items-center justify-between text-foreground-secondary">
-        <div className="flex items-center space-x-6">
-          <button className="flex items-center space-x-2 hover:text-primary transition-colors">
-            <ThumbsUp className="w-4 h-4 thumbs-up" />
-            <span>{dump.likes}</span>
-          </button>
+
+      <div className="flex items-center justify-between">
+        <div className="flex items-center space-x-4">
           <button className="flex items-center space-x-2 hover:text-primary transition-colors">
             <MessageSquare className="w-4 h-4" />
             <span>{dump.comments}</span>
           </button>
+          <button className="flex items-center space-x-2 hover:text-primary transition-colors">
+            <ThumbsUp className="w-4 h-4" />
+            <span>{dump.likes}</span>
+          </button>
+          <button className="hover:text-primary transition-colors">
+            <Share2 className="w-4 h-4" />
+          </button>
         </div>
-        <div className="flex items-center space-x-4">
+
+        <div className="flex items-center space-x-2">
           <button
             onClick={handleCopy}
-            className="p-2 transition-all duration-200 active:scale-95 touch-manipulation hover:text-primary"
+            className="p-2 hover:bg-gray-700/50 rounded-lg transition-colors"
             title={copied ? 'Copied!' : 'Copy prompt'}
           >
             {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
@@ -200,16 +229,32 @@ export function DumpCard({ dump, onDelete, onEdit, isEditable }: DumpCardProps) 
           {isEditable && (
             <>
               <button
-                onClick={handleEdit}
-                className="p-2 transition-all duration-200 active:scale-95 touch-manipulation hover:text-primary"
+                onClick={() => setIsEditing(true)}
+                className="p-2 hover:bg-gray-700/50 rounded-lg transition-colors"
+                title="Edit"
               >
                 <Edit2 className="w-4 h-4" />
               </button>
+              {isEditing && (
+                <button
+                  onClick={handleSaveEdit}
+                  className="p-2 bg-green-600 hover:bg-green-700 rounded-lg transition-colors"
+                  title="Accept changes"
+                >
+                  <Check className="w-4 h-4 text-white" />
+                </button>
+              )}
               <button
-                onClick={onDelete}
-                className="p-2 transition-all duration-200 active:scale-95 touch-manipulation hover:text-destructive"
+                onClick={handleDelete}
+                disabled={isDeleting}
+                className={`p-2 rounded-lg transition-colors ${
+                  isDeleting 
+                    ? 'opacity-50 cursor-not-allowed'
+                    : 'hover:bg-gray-700/50'
+                }`}
+                title="Delete"
               >
-                <Trash2 className="w-4 h-4" />
+                <Trash2 className={`w-4 h-4 ${isDeleting ? 'animate-spin' : ''}`} />
               </button>
             </>
           )}
@@ -217,10 +262,7 @@ export function DumpCard({ dump, onDelete, onEdit, isEditable }: DumpCardProps) 
             className="flex items-center space-x-2 hover:text-primary transition-colors"
             onClick={handleSave}
           >
-            <Bookmark 
-              className={`w-4 h-4 bookmark ${isSaved ? 'saved' : ''}`} 
-              fill={isSaved ? "currentColor" : "none"}
-            />
+            <Bookmark className={`w-4 h-4 ${isSaved ? 'fill-current' : ''}`} />
           </button>
         </div>
       </div>
