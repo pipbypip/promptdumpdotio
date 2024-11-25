@@ -1,316 +1,196 @@
-import React, { useState, useMemo } from 'react'
+import React, { useState, useMemo, useEffect } from 'react'
 import { PlusCircle } from 'lucide-react'
 import { PromptModal } from './PromptModal'
 import { useNavigate } from 'react-router-dom'
 import { SearchAndSort, type SortOption, type CategoryOption } from './SearchAndSort'
 import { DumpCard, type Dump } from './DumpCard'
-
-const mockDumps: Dump[] = [
-  {
-    id: '1',
-    title: 'Stable Diffusion Masterpiece Generator',
-    prompt: 'Create a masterpiece in the style of Van Gogh with a modern cyberpunk twist, featuring neon lights and starry night elements...',
-    author: {
-      name: 'PromptMaster',
-      avatar: 'https://api.dicebear.com/7.x/pixel-art/svg?seed=PromptMaster'
-    },
-    likes: 342,
-    comments: 56,
-    tags: ['stable-diffusion', 'art', 'cyberpunk'],
-    createdAt: '2024-01-15',
-    category: 'art',
-    type: 'art'
-  },
-  {
-    id: '2',
-    title: 'GPT-4 Code Review Expert',
-    prompt: 'You are a senior software engineer with expertise in clean code principles and design patterns. Review the following code...',
-    author: {
-      name: 'CodeWizard',
-      avatar: 'https://api.dicebear.com/7.x/pixel-art/svg?seed=CodeWizard'
-    },
-    likes: 289,
-    comments: 42,
-    tags: ['gpt-4', 'coding', 'review'],
-    createdAt: '2024-01-14',
-    category: 'coding',
-    type: 'coding'
-  },
-  {
-    id: '3',
-    title: 'Claude Business Strategy Advisor',
-    prompt: 'Act as a seasoned business strategy consultant with expertise in market analysis and growth strategies...',
-    author: {
-      name: 'StrategyGuru',
-      avatar: 'https://api.dicebear.com/7.x/pixel-art/svg?seed=StrategyGuru'
-    },
-    likes: 156,
-    comments: 23,
-    tags: ['claude', 'business', 'strategy'],
-    createdAt: '2024-01-13',
-    category: 'business',
-    type: 'business'
-  },
-  {
-    id: '4',
-    title: 'AI Poem Creator',
-    prompt: 'Compose a heartfelt poem in the style of Emily Dickinson about hope and resilience in the digital age...',
-    author: {
-      name: 'CreativeScribe',
-      avatar: 'https://api.dicebear.com/7.x/pixel-art/svg?seed=CreativeScribe'
-    },
-    likes: 210,
-    comments: 30,
-    tags: ['gpt-4', 'writing', 'poetry'],
-    createdAt: '2024-01-12',
-    category: 'writing',
-    type: 'writing'
-  },
-  {
-    id: '5',
-    title: 'Persuasive Ad Copy Generator',
-    prompt: 'Create a short and engaging ad copy for a sustainable clothing brand emphasizing eco-friendliness and affordability...',
-    author: {
-      name: 'AdCopyGenius',
-      avatar: 'https://api.dicebear.com/7.x/pixel-art/svg?seed=AdCopyGenius'
-    },
-    likes: 275,
-    comments: 40,
-    tags: ['marketing', 'copywriting', 'eco'],
-    createdAt: '2024-01-11',
-    category: 'marketing',
-    type: 'marketing'
-  },
-  {
-    id: '6',
-    title: 'MidJourney Surreal Landscape',
-    prompt: 'Generate a surreal landscape featuring floating mountains, cascading waterfalls, and a dreamy twilight sky...',
-    author: {
-      name: 'VisualizerPro',
-      avatar: 'https://api.dicebear.com/7.x/pixel-art/svg?seed=VisualizerPro'
-    },
-    likes: 390,
-    comments: 65,
-    tags: ['midjourney', 'art', 'surreal'],
-    createdAt: '2024-01-10',
-    category: 'art',
-    type: 'art'
-  },
-  {
-    id: '7',
-    title: 'SQL Query Troubleshooter',
-    prompt: 'Analyze the following SQL query and optimize it for better performance on large datasets...',
-    author: {
-      name: 'DataDynamo',
-      avatar: 'https://api.dicebear.com/7.x/pixel-art/svg?seed=DataDynamo'
-    },
-    likes: 200,
-    comments: 28,
-    tags: ['coding', 'sql', 'optimization'],
-    createdAt: '2024-01-09',
-    category: 'coding',
-    type: 'coding'
-  },
-  {
-    id: '8',
-    title: 'Game Narrative Designer',
-    prompt: 'Design an engaging backstory for a stealth-action game set in a dystopian future ruled by AI overlords...',
-    author: {
-      name: 'GameDevHelper',
-      avatar: 'https://api.dicebear.com/7.x/pixel-art/svg?seed=GameDevHelper'
-    },
-    likes: 184,
-    comments: 26,
-    tags: ['gpt-4', 'gaming', 'storytelling'],
-    createdAt: '2024-01-08',
-    category: 'gaming',
-    type: 'gaming'
-  },
-  {
-    id: '9',
-    title: 'Personalized Workout Planner',
-    prompt: 'Create a 4-week fitness plan for someone aiming to lose weight and build muscle, considering dietary preferences...',
-    author: {
-      name: 'FitnessExpert',
-      avatar: 'https://api.dicebear.com/7.x/pixel-art/svg?seed=FitnessExpert'
-    },
-    likes: 312,
-    comments: 55,
-    tags: ['gpt-4', 'health', 'fitness'],
-    createdAt: '2024-01-07',
-    category: 'health',
-    type: 'health'
-  },
-  {
-    id: '10',
-    title: 'French Grammar Coach',
-    prompt: 'Explain the rules of passé composé versus imparfait with examples to help a beginner learn...',
-    author: {
-      name: 'LanguageLover',
-      avatar: 'https://api.dicebear.com/7.x/pixel-art/svg?seed=LanguageLover'
-    },
-    likes: 150,
-    comments: 20,
-    tags: ['gpt-4', 'language', 'education'],
-    createdAt: '2024-01-06',
-    category: 'education',
-    type: 'education'
-  },
-  {
-    id: '11',
-    title: 'Pitch Deck Creator',
-    prompt: 'Draft an elevator pitch for a tech startup developing AI-powered personal assistants for busy professionals...',
-    author: {
-      name: 'StartupWizard',
-      avatar: 'https://api.dicebear.com/7.x/pixel-art/svg?seed=StartupWizard'
-    },
-    likes: 195,
-    comments: 25,
-    tags: ['business', 'pitch', 'startups'],
-    createdAt: '2024-01-05',
-    category: 'business',
-    type: 'business'
-  },
-  {
-    id: '12',
-    title: 'Alternate History Scenario',
-    prompt: 'Imagine a world where the Roman Empire never fell. Describe the cultural, technological, and political implications...',
-    author: {
-      name: 'HistoryBuff',
-      avatar: 'https://api.dicebear.com/7.x/pixel-art/svg?seed=HistoryBuff'
-    },
-    likes: 176,
-    comments: 24,
-    tags: ['gpt-4', 'writing', 'history'],
-    createdAt: '2024-01-04',
-    category: 'writing',
-    type: 'writing'
-  },
-  {
-    id: '13',
-    title: 'Illustration Prompt: Urban Fantasy',
-    prompt: 'Create a vibrant cityscape blending modern urban life with magical creatures and glowing runes on skyscrapers...',
-    author: {
-      name: 'VisualStoryteller',
-      avatar: 'https://api.dicebear.com/7.x/pixel-art/svg?seed=VisualStoryteller'
-    },
-    likes: 310,
-    comments: 50,
-    tags: ['art', 'fantasy', 'urban'],
-    createdAt: '2024-01-03',
-    category: 'art',
-    type: 'art'
-  },
-  {
-    id: '14',
-    title: 'Contract Simplifier',
-    prompt: 'Rephrase the following legal document into plain, simple English while retaining accuracy...',
-    author: {
-      name: 'LegalEagle',
-      avatar: 'https://api.dicebear.com/7.x/pixel-art/svg?seed=LegalEagle'
-    },
-    likes: 240,
-    comments: 35,
-    tags: ['gpt-4', 'law', 'clarity'],
-    createdAt: '2024-01-02',
-    category: 'legal',
-    type: 'legal'
-  },
-  {
-    id: '15',
-    title: 'Custom Travel Itinerary',
-    prompt: 'Plan a 7-day trip to Japan, focusing on hidden gems, local cuisine, and cultural experiences...',
-    author: {
-      name: 'TravelExplorer',
-      avatar: 'https://api.dicebear.com/7.x/pixel-art/svg?seed=TravelExplorer'
-    },
-    likes: 300,
-    comments: 48,
-    tags: ['gpt-4', 'travel', 'planning'],
-    createdAt: '2024-01-01',
-    category: 'travel',
-    type: 'travel'
-  }
-]
-
-export interface Dump {
-  id: string
-  title: string
-  prompt: string
-  author: {
-    name: string
-    avatar: string
-  }
-  likes: number
-  comments: number
-  tags: string[]
-  createdAt: string
-  category: string
-  type: string
-}
+import { getFirestore, collection, query, orderBy, limit, getDocs, addDoc, deleteDoc, doc, where, getDoc, updateDoc, onSnapshot } from 'firebase/firestore'
+import { useAuth } from '../contexts/AuthContext'
 
 export function DumpFeed() {
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
-  const [sortOption, setSortOption] = useState<SortOption>('trending')
+  const [sortOption, setSortOption] = useState<SortOption>('newest')
   const [categoryOption, setCategoryOption] = useState<CategoryOption>('all')
-  const [dumps, setDumps] = useState<Dump[]>(mockDumps)
+  const [dumps, setDumps] = useState<Dump[]>([])
   const [deletedDumps, setDeletedDumps] = useState<Dump[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const navigate = useNavigate()
+  const { user } = useAuth()
 
-  const handleDelete = (id: string) => {
-    const dumpToDelete = dumps.find(dump => dump.id === id)
-    if (dumpToDelete) {
-      setDumps(prevDumps => prevDumps.filter(dump => dump.id !== id))
-      setDeletedDumps(prevDeleted => [dumpToDelete, ...prevDeleted])
+  // Load and listen to prompts from Firebase
+  useEffect(() => {
+    setLoading(true)
+    setError(null)
+    
+    const db = getFirestore()
+    const promptsRef = collection(db, 'prompts')
+    const q = query(
+      promptsRef,
+      orderBy('createdAt', 'desc'),
+      limit(50)
+    )
+
+    // Set up real-time listener
+    const unsubscribe = onSnapshot(q, 
+      (querySnapshot) => {
+        console.log('Real-time feed update:', {
+          size: querySnapshot.size,
+          empty: querySnapshot.empty
+        })
+
+        const loadedPrompts = querySnapshot.docs.map(doc => {
+          const data = doc.data()
+          return {
+            id: doc.id,
+            ...data,
+            title: data.title || 'Untitled',
+            prompt: data.prompt || '',
+            author: {
+              id: data.author?.id || 'unknown',
+              name: data.author?.name || 'Anonymous',
+              avatar: data.author?.avatar || `https://api.dicebear.com/7.x/pixel-art/svg?seed=${doc.id}`
+            },
+            likes: data.likes || 0,
+            comments: data.comments || 0,
+            tags: data.tags || [],
+            createdAt: data.createdAt || new Date().toISOString(),
+            category: data.category || 'other',
+            type: data.type || data.category || 'other'
+          } as Dump
+        })
+
+        console.log('Feed prompts updated:', loadedPrompts.length)
+        setDumps(loadedPrompts)
+        setLoading(false)
+      },
+      (error) => {
+        console.error('Error in feed listener:', error)
+        setError('Failed to load prompts. Please try again.')
+        setLoading(false)
+      }
+    )
+
+    // Cleanup subscription on unmount
+    return () => unsubscribe()
+  }, [])
+
+  const handleDelete = async (id: string) => {
+    if (!user) {
+      console.error('No user found. Please sign in.')
+      return
+    }
+
+    try {
+      const db = getFirestore()
+      const promptRef = doc(db, 'prompts', id)
+      const promptDoc = await getDoc(promptRef)
+
+      if (!promptDoc.exists()) {
+        console.error('Prompt not found')
+        return
+      }
+
+      const promptData = promptDoc.data()
+      if (promptData.author?.id !== user.uid) {
+        console.error('Not authorized to delete this prompt')
+        return
+      }
+
+      await deleteDoc(promptRef)
+      const dumpToDelete = dumps.find(dump => dump.id === id)
+      if (dumpToDelete) {
+        setDumps(prevDumps => prevDumps.filter(dump => dump.id !== id))
+        setDeletedDumps(prevDeleted => [dumpToDelete, ...prevDeleted])
+      }
+    } catch (error) {
+      console.error('Error deleting prompt:', error)
     }
   }
 
-  const handleUndo = () => {
-    if (deletedDumps.length > 0) {
+  const handleUndo = async () => {
+    if (!user || deletedDumps.length === 0) return
+
+    try {
+      const db = getFirestore()
       const [lastDeleted, ...remainingDeleted] = deletedDumps
-      setDumps(prevDumps => [...prevDumps, lastDeleted])
+      
+      const promptData = {
+        title: lastDeleted.title,
+        prompt: lastDeleted.prompt,
+        author: {
+          id: user.uid,
+          name: user.displayName || 'Anonymous',
+          avatar: user.photoURL || `https://api.dicebear.com/7.x/pixel-art/svg?seed=${user.uid}`
+        },
+        likes: lastDeleted.likes,
+        comments: lastDeleted.comments,
+        tags: lastDeleted.tags,
+        createdAt: new Date().toISOString(),
+        category: lastDeleted.category,
+        type: lastDeleted.type
+      }
+
+      const docRef = await addDoc(collection(db, 'prompts'), promptData)
+      const newDump: Dump = {
+        id: docRef.id,
+        ...promptData,
+        author: {
+          id: user.uid,
+          name: user.displayName || 'Anonymous',
+          avatar: user.photoURL || `https://api.dicebear.com/7.x/pixel-art/svg?seed=${user.uid}`
+        }
+      }
+
+      setDumps(prevDumps => [newDump, ...prevDumps])
       setDeletedDumps(remainingDeleted)
+    } catch (error) {
+      console.error('Error restoring prompt:', error)
     }
   }
 
-  const handleSavePrompt = (prompt: { title: string; content: string; type: string }) => {
-    const newDump: Dump = {
-      id: `dump-${Date.now()}`,
-      title: prompt.title,
-      prompt: prompt.content,
-      author: {
-        name: 'You',
-        avatar: 'https://api.dicebear.com/7.x/pixel-art/svg?seed=You'
-      },
-      likes: 0,
-      comments: 0,
-      tags: [],
-      createdAt: new Date().toISOString(),
-      category: prompt.type,
-      type: prompt.type
+  const handleSavePrompt = async (prompt: { title: string; content: string; type: string }) => {
+    if (!user) {
+      console.error('No user found. Please sign in.')
+      return
     }
 
-    // Add to feed
-    setDumps(prev => [newDump, ...prev])
+    try {
+      const db = getFirestore()
+      const promptData = {
+        title: prompt.title,
+        prompt: prompt.content,
+        author: {
+          id: user.uid,
+          name: user.displayName || 'Anonymous',
+          avatar: user.photoURL || `https://api.dicebear.com/7.x/pixel-art/svg?seed=${user.uid}`
+        },
+        likes: 0,
+        comments: 0,
+        tags: [],
+        createdAt: new Date().toISOString(),
+        category: prompt.type,
+        type: prompt.type,
+        isPublic: true
+      }
 
-    // Save to user's profile
-    const userDumps = JSON.parse(localStorage.getItem('userDumps') || '[]')
-    const updatedUserDumps = [
-      {
-        id: newDump.id,
-        title: newDump.title,
-        content: newDump.prompt,
-        likes: newDump.likes,
-        comments: newDump.comments,
-        createdAt: newDump.createdAt,
-        category: newDump.category
-      },
-      ...userDumps
-    ]
-    localStorage.setItem('userDumps', JSON.stringify(updatedUserDumps))
+      // Add to Firebase
+      const docRef = await addDoc(collection(db, 'prompts'), promptData)
+      console.log('New prompt created with ID:', docRef.id)
 
-    setIsModalOpen(false)
+      const newDump: Dump = {
+        id: docRef.id,
+        ...promptData
+      }
+
+      // Update local state
+      setDumps(prev => [newDump, ...prev])
+      setIsModalOpen(false)
+    } catch (error) {
+      console.error('Error saving prompt:', error)
+      setError('Failed to save prompt. Please try again.')
+    }
   }
 
   const filteredDumps = useMemo(() => {
@@ -373,7 +253,15 @@ export function DumpFeed() {
           />
 
           <div className="grid grid-cols-1 gap-6">
-            {filteredDumps.length === 0 ? (
+            {loading ? (
+              <div className="text-center py-12 bg-background-secondary rounded-xl">
+                <p className="text-foreground-secondary">Loading prompts...</p>
+              </div>
+            ) : error ? (
+              <div className="text-center py-12 bg-background-secondary rounded-xl">
+                <p className="text-red-500">{error}</p>
+              </div>
+            ) : filteredDumps.length === 0 ? (
               <div className="text-center py-12 bg-background-secondary rounded-xl">
                 <p className="text-foreground-secondary">No prompts found</p>
               </div>
@@ -393,4 +281,21 @@ export function DumpFeed() {
       />
     </div>
   )
+}
+
+export interface Dump {
+  id: string
+  title: string
+  prompt: string
+  author: {
+    id: string
+    name: string
+    avatar: string
+  }
+  likes: number
+  comments: number
+  tags: string[]
+  createdAt: string
+  category: string
+  type: string
 }

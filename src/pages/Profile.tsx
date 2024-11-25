@@ -4,7 +4,8 @@ import { SearchAndSort, type SortOption, type CategoryOption } from '../componen
 import { PromptModal } from '../components/PromptModal'
 import { DumpCard, type Dump } from '../components/DumpCard'
 import { Settings } from '../components/Settings'
-import { getAuth, getFirestore, doc, updateDoc, collection, addDoc, query, where, orderBy, getDocs, writeBatch } from 'firebase/firestore'
+import { getAuth } from 'firebase/auth'
+import { getFirestore, doc, updateDoc, collection, addDoc, query, where, orderBy, getDocs, writeBatch, getDoc } from 'firebase/firestore'
 import { Link } from 'react-router-dom'
 
 interface Prompt {
@@ -33,6 +34,7 @@ interface Dump {
 }
 
 export function Profile() {
+  console.log('Profile component rendering');  // Debug log
   const [prompts, setPrompts] = useState<Dump[]>([])
   const [isEditing, setIsEditing] = useState(false)
   const [bio, setBio] = useState('AI prompt engineer and enthusiast')
@@ -48,14 +50,29 @@ export function Profile() {
   const [editingInlinePrompt, setEditingInlinePrompt] = useState<string | null>(null);
   const [inlineTitle, setInlineTitle] = useState('');
   const [inlineContent, setInlineContent] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [deletedPrompts, setDeletedPrompts] = useState<Dump[]>([])
+
+  // Get current user
+  const auth = getAuth()
+  const user = auth.currentUser
+  console.log('Current user:', user?.uid);  // Debug log
 
   // Load user prompts from Firebase
   useEffect(() => {
-    if (!user) return;
+    console.log('Loading prompts effect triggered');  // Debug log
+    if (!user) {
+      console.log('No user found, skipping prompt load');  // Debug log
+      setLoading(false);
+      return;
+    }
 
     const loadPrompts = async () => {
+      setLoading(true);
+      setError(null);
       try {
+        console.log('Starting to load prompts for user:', user.uid);  // Debug log
         const db = getFirestore();
         const promptsRef = collection(db, 'prompts');
         const q = query(
@@ -64,27 +81,78 @@ export function Profile() {
           orderBy('createdAt', 'desc')
         );
 
+        console.log('Executing Firestore query with params:', {
+          authorId: user.uid,
+          collection: 'prompts'
+        });  // Debug log
+
         const querySnapshot = await getDocs(q);
-        const userPrompts = querySnapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data()
-        })) as Dump[];
+        console.log('Query results:', {
+          size: querySnapshot.size,
+          empty: querySnapshot.empty,
+          metadata: querySnapshot.metadata
+        });  // Debug log
+
+        const userPrompts = querySnapshot.docs.map(doc => {
+          const data = doc.data();
+          console.log('Document data:', {
+            id: doc.id,
+            title: data.title,
+            authorId: data.author?.id,
+            createdAt: data.createdAt
+          });  // Debug log
+          return {
+            id: doc.id,
+            ...data,
+            // Ensure required fields have default values
+            title: data.title || 'Untitled',
+            prompt: data.prompt || '',
+            author: {
+              id: data.author?.id || user.uid,
+              name: data.author?.name || user.displayName || 'Anonymous',
+              avatar: data.author?.avatar || `https://api.dicebear.com/7.x/pixel-art/svg?seed=${user.uid}`
+            },
+            likes: data.likes || 0,
+            comments: data.comments || 0,
+            tags: data.tags || [],
+            createdAt: data.createdAt || new Date().toISOString(),
+            category: data.category || 'other'
+          } as Dump;
+        });
 
         setPrompts(userPrompts);
+        console.log('Prompts loaded successfully:', {
+          count: userPrompts.length,
+          firstPrompt: userPrompts[0]
+        });  // Debug log
       } catch (error) {
         console.error('Error loading prompts:', error);
+        if (error instanceof Error) {
+          setError(`Failed to load prompts: ${error.message}`);
+        } else {
+          setError('Failed to load prompts. Please try again.');
+        }
+      } finally {
+        setLoading(false);
       }
     };
 
     loadPrompts();
-  }, [user, activeTab]);
+  }, [user]);
 
   // Load saved prompts from Firebase
   useEffect(() => {
-    if (!user || activeTab !== 'saved-dumps') return;
+    console.log('Loading saved prompts effect triggered');  // Debug log
+    if (!user || activeTab !== 'saved-dumps') {
+      console.log('No user found or not on saved dumps tab, skipping saved prompts load');  // Debug log
+      return;
+    }
 
     const loadSavedPrompts = async () => {
+      setLoading(true);
+      setError(null);
       try {
+        console.log('Starting to load saved prompts for user:', user.uid);  // Debug log
         const db = getFirestore();
         const savedPromptsRef = collection(db, 'savedPrompts');
         const q = query(
@@ -93,23 +161,85 @@ export function Profile() {
           orderBy('savedAt', 'desc')
         );
 
+        console.log('Executing saved prompts query with params:', {
+          userId: user.uid,
+          collection: 'savedPrompts'
+        });  // Debug log
+
         const querySnapshot = await getDocs(q);
-        const savedPromptIds = querySnapshot.docs.map(doc => doc.data().promptId);
+        console.log('Saved prompts query results:', {
+          size: querySnapshot.size,
+          empty: querySnapshot.empty,
+          metadata: querySnapshot.metadata
+        });  // Debug log
+
+        const savedPromptIds = querySnapshot.docs.map(doc => {
+          const data = doc.data();
+          console.log('Saved prompt document:', {
+            id: doc.id,
+            promptId: data.promptId,
+            savedAt: data.savedAt
+          });  // Debug log
+          return data.promptId;
+        }).filter(Boolean);
+
+        console.log('Fetching full prompt details for saved prompts:', savedPromptIds);  // Debug log
 
         // Fetch the actual prompts
         const prompts = await Promise.all(
           savedPromptIds.map(async (promptId) => {
-            const promptDoc = await getDoc(doc(db, 'prompts', promptId));
-            if (promptDoc.exists()) {
-              return { id: promptDoc.id, ...promptDoc.data() } as Dump;
+            try {
+              const promptDoc = await getDoc(doc(db, 'prompts', promptId));
+              if (promptDoc.exists()) {
+                const data = promptDoc.data();
+                console.log('Retrieved prompt data:', {
+                  id: promptDoc.id,
+                  title: data.title,
+                  author: data.author
+                });  // Debug log
+                return {
+                  id: promptDoc.id,
+                  ...data,
+                  // Ensure required fields have default values
+                  title: data.title || 'Untitled',
+                  prompt: data.prompt || '',
+                  author: {
+                    id: data.author?.id || 'unknown',
+                    name: data.author?.name || 'Anonymous',
+                    avatar: data.author?.avatar || `https://api.dicebear.com/7.x/pixel-art/svg?seed=${promptId}`
+                  },
+                  likes: data.likes || 0,
+                  comments: data.comments || 0,
+                  tags: data.tags || [],
+                  createdAt: data.createdAt || new Date().toISOString(),
+                  category: data.category || 'other'
+                } as Dump;
+              }
+              console.warn('Saved prompt not found:', promptId);  // Debug log
+              return null;
+            } catch (error) {
+              console.error('Error fetching prompt:', promptId, error);  // Debug log
+              return null;
             }
-            return null;
           })
         );
 
-        setSavedDumps(prompts.filter((p): p is Dump => p !== null));
+        const validPrompts = prompts.filter((p): p is Dump => p !== null);
+        setSavedDumps(validPrompts);
+        console.log('Saved prompts loaded successfully:', {
+          total: prompts.length,
+          valid: validPrompts.length,
+          prompts: validPrompts
+        });  // Debug log
       } catch (error) {
         console.error('Error loading saved prompts:', error);
+        if (error instanceof Error) {
+          setError(`Failed to load saved prompts: ${error.message}`);
+        } else {
+          setError('Failed to load saved prompts. Please try again.');
+        }
+      } finally {
+        setLoading(false);
       }
     };
 
@@ -149,30 +279,25 @@ export function Profile() {
     })
   }, [prompts, searchQuery, sortBy, category])
 
-  // Get current user
-  const auth = getAuth()
-  const user = auth.currentUser
-
   const handleSavePrompt = async (prompt: { title: string; content: string; type: string }) => {
     if (!user) {
-      console.error('No user found. Please sign in.')
-      return
+      console.error('No user found. Please sign in.');
+      return;
     }
 
     try {
-      const db = getFirestore()
+      const db = getFirestore();
       
       if (editingPrompt) {
-        // Update existing prompt in Firebase
-        const promptRef = doc(db, 'prompts', editingPrompt.id)
+        console.log('Updating existing prompt:', editingPrompt.id);
+        const promptRef = doc(db, 'prompts', editingPrompt.id);
         await updateDoc(promptRef, {
           title: prompt.title,
           prompt: prompt.content,
           category: prompt.type as CategoryOption,
           updatedAt: new Date().toISOString()
-        })
+        });
 
-        // Update local state
         const updatedPrompts = prompts.map(p =>
           p.id === editingPrompt.id
             ? {
@@ -182,12 +307,13 @@ export function Profile() {
                 category: prompt.type as CategoryOption
               }
             : p
-        )
-        setPrompts(updatedPrompts)
-        setEditingPrompt(null)
+        );
+        setPrompts(updatedPrompts);
+        setEditingPrompt(null);
+        console.log('Prompt updated successfully');
       } else {
-        // Create new prompt in Firebase
-        const promptsRef = collection(db, 'prompts')
+        console.log('Creating new prompt');
+        const promptsRef = collection(db, 'prompts');
         const newPromptData = {
           title: prompt.title,
           prompt: prompt.content,
@@ -201,33 +327,38 @@ export function Profile() {
           tags: [],
           createdAt: new Date().toISOString(),
           category: prompt.type as CategoryOption,
-          isPublic: true // You might want to make this configurable
-        }
+          isPublic: true
+        };
 
-        const docRef = await addDoc(promptsRef, newPromptData)
+        const docRef = await addDoc(promptsRef, newPromptData);
+        console.log('New prompt created with ID:', docRef.id);
         
-        // Update local state
         const newPrompt: Dump = {
           id: docRef.id,
           ...newPromptData
-        }
-        const updatedPrompts = [newPrompt, ...prompts]
-        setPrompts(updatedPrompts)
+        };
+        const updatedPrompts = [newPrompt, ...prompts];
+        setPrompts(updatedPrompts);
       }
     } catch (error) {
-      console.error('Error saving prompt:', error)
+      console.error('Error saving prompt:', error);
+      if (error instanceof Error) {
+        setError(`Failed to save prompt: ${error.message}`);
+      } else {
+        setError('Failed to save prompt. Please try again.');
+      }
     }
     
-    setIsModalOpen(false)
+    setIsModalOpen(false);
   }
 
-  const handleEdit = (prompt: Dump) => {
-    setEditingPrompt({
-      ...prompt,
-      type: prompt.category || 'general'
-    })
-    setIsModalOpen(true)
-  }
+  const handleEdit = (updatedDump: Dump) => {
+    setPrompts(prevPrompts => 
+      prevPrompts.map(prompt => 
+        prompt.id === updatedDump.id ? updatedDump : prompt
+      )
+    );
+  };
 
   const handleCopy = async (prompt: Dump) => {
     try {
@@ -273,20 +404,41 @@ export function Profile() {
     });
   }
 
-  const handleUndo = () => {
-    if (deletedPrompts.length > 0) {
-      const [lastDeleted, ...remainingDeleted] = deletedPrompts
-      setPrompts(current => [...current, lastDeleted])
-      setDeletedPrompts(remainingDeleted)
-      
-      // Update Firebase
+  const handleUndo = async () => {
+    if (!user || deletedPrompts.length === 0) return;
+
+    try {
       const db = getFirestore();
-      const promptRef = doc(db, 'prompts', lastDeleted.id);
-      updateDoc(promptRef, {
-        isDeleted: false,
-      });
+      const [lastDeleted, ...remainingDeleted] = deletedPrompts;
+      
+      const promptData = {
+        title: lastDeleted.title,
+        prompt: lastDeleted.prompt,
+        author: {
+          id: user.uid,
+          name: user.displayName || 'Anonymous',
+          avatar: user.photoURL || `https://api.dicebear.com/7.x/pixel-art/svg?seed=${user.uid}`
+        },
+        likes: lastDeleted.likes,
+        comments: lastDeleted.comments,
+        tags: lastDeleted.tags,
+        createdAt: new Date().toISOString(),
+        category: lastDeleted.category,
+        type: lastDeleted.type
+      };
+
+      const docRef = await addDoc(collection(db, 'prompts'), promptData);
+      const newDump: Dump = {
+        id: docRef.id,
+        ...promptData
+      };
+
+      setPrompts(prevPrompts => [newDump, ...prevPrompts]);
+      setDeletedPrompts(remainingDeleted);
+    } catch (error) {
+      console.error('Error restoring prompt:', error);
     }
-  }
+  };
 
   const handleSaveToCollection = async (prompt: Dump) => {
     if (!user) return;
@@ -335,251 +487,145 @@ export function Profile() {
 
   return (
     <div className="container mx-auto py-8 px-4">
-      <div className="max-w-4xl mx-auto">
-        {/* Profile Header */}
-        <div className="flex items-center justify-between mb-8">
-          <div className="flex items-center space-x-4">
-            <img
-              src={user?.photoURL || `https://api.dicebear.com/7.x/pixel-art/svg?seed=${user?.email}`}
-              alt={user?.displayName || 'Profile'}
-              className="w-16 h-16 rounded-full"
-            />
-            <div>
-              <h1 className="text-2xl font-bold">{user?.displayName || 'AI Enthusiast'}</h1>
-              {user?.username && (
-                <Link
-                  to={`/u/${user?.username}`}
-                  className="text-foreground-secondary hover:text-foreground transition-colors"
-                >
-                  View Public Profile
-                </Link>
-              )}
-              {isEditing ? (
-                <input
-                  type="text"
-                  value={bio}
-                  onChange={(e) => setBio(e.target.value)}
-                  onBlur={() => setIsEditing(false)}
-                  className="mt-1 px-2 py-1 bg-background-secondary rounded border border-border"
-                  autoFocus
-                />
-              ) : (
-                <p
-                  className="mt-1 text-foreground-secondary cursor-pointer hover:text-foreground"
-                  onClick={() => setIsEditing(true)}
-                >
-                  {bio}
-                </p>
-              )}
-            </div>
-          </div>
-          <button 
-            onClick={() => setIsSettingsOpen(true)}
-            className="p-2 hover:bg-background-secondary rounded-full"
-          >
-            <SettingsIcon className="w-6 h-6" />
-          </button>
+      {error && (
+        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4">
+          <span className="block sm:inline">{error}</span>
         </div>
+      )}
 
-        {/* Tabs */}
-        <div className="flex space-x-4 mb-6 border-b border-border">
-          <button
-            className={`pb-2 px-4 font-medium transition-colors ${
-              activeTab === 'my-dumps'
-                ? 'text-primary border-b-2 border-primary'
-                : 'text-foreground-secondary hover:text-foreground'
-            }`}
-            onClick={() => setActiveTab('my-dumps')}
-          >
-            My Dumps
-          </button>
-          <button
-            className={`pb-2 px-4 font-medium transition-colors ${
-              activeTab === 'saved-dumps'
-                ? 'text-primary border-b-2 border-primary'
-                : 'text-foreground-secondary hover:text-foreground'
-            }`}
-            onClick={() => setActiveTab('saved-dumps')}
-          >
-            Saved Dumps
-          </button>
-        </div>
-
-        {/* Search and Sort */}
-        <div className="mb-6">
-          <SearchAndSort
-            searchValue={searchQuery}
-            sortValue={sortBy}
-            categoryValue={category}
-            onSearch={setSearchQuery}
-            onSortChange={setSortBy}
-            onCategoryChange={setCategory}
-            onUndo={handleUndo}
-            canUndo={deletedPrompts.length > 0}
+      {/* Profile Header */}
+      <div className="flex items-center justify-between mb-8">
+        <div className="flex items-center space-x-4">
+          <img
+            src={user?.photoURL || `https://api.dicebear.com/7.x/pixel-art/svg?seed=${user?.uid || 'anonymous'}`}
+            alt={user?.displayName || 'Anonymous'}
+            className="w-16 h-16 rounded-full"
           />
-        </div>
-
-        {/* Content */}
-        {activeTab === 'my-dumps' ? (
-          <>
-            {/* Add Prompt Button */}
-            <button
-              onClick={() => setIsModalOpen(true)}
-              className="w-full p-4 mb-6 border-2 border-dashed border-border rounded-lg text-foreground-secondary hover:text-foreground hover:border-primary transition-colors flex items-center justify-center space-x-2"
-            >
-              <PlusCircle className="w-5 h-5" />
-              <span>New Dump</span>
-            </button>
-
-            {/* Prompts List */}
-            <div className="space-y-6">
-              {filteredPrompts.map((prompt) => (
-                <div
-                  key={prompt.id}
-                  className="prompt-box"
-                >
-                  <div className="flex justify-between items-start mb-2">
-                    {editingInlinePrompt === prompt.id ? (
-                      <input
-                        type="text"
-                        value={inlineTitle}
-                        onChange={(e) => setInlineTitle(e.target.value)}
-                        className="text-lg font-bold bg-background-secondary rounded px-2 py-1 w-full mr-2"
-                        autoFocus
-                      />
-                    ) : (
-                      <h3 
-                        className="text-lg font-bold cursor-pointer hover:text-primary"
-                        onDoubleClick={() => handleInlineEdit(prompt)}
-                      >
-                        {prompt.title}
-                      </h3>
-                    )}
-                    <div className="flex gap-2">
-                      {editingInlinePrompt === prompt.id ? (
-                        <button
-                          onClick={() => handleInlineSave(prompt)}
-                          className="p-1 text-primary hover:text-accent transition-colors"
-                          title="Save changes"
-                        >
-                          <Check className="w-4 h-4" />
-                        </button>
-                      ) : (
-                        <>
-                          <button
-                            onClick={() => handleInlineEdit(prompt)}
-                            className="p-1 hover:text-primary transition-colors"
-                            title="Edit prompt"
-                          >
-                            <Edit3 className="w-4 h-4" />
-                          </button>
-                          <button
-                            onClick={() => handleCopy(prompt)}
-                            className={`p-1 transition-all duration-200 ${
-                              copiedId === prompt.id
-                                ? 'text-green-500 scale-110'
-                                : 'hover:text-primary'
-                            }`}
-                            title={copiedId === prompt.id ? 'Copied!' : 'Copy prompt'}
-                          >
-                            {copiedId === prompt.id ? (
-                              <Check className="w-4 h-4 animate-bounce" />
-                            ) : (
-                              <Copy className="w-4 h-4" />
-                            )}
-                          </button>
-                          <button
-                            onClick={() => handleDelete(prompt)}
-                            className="p-1 hover:text-red-500 transition-colors"
-                            title="Delete prompt"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                          <button
-                            onClick={() => handleSaveToCollection(prompt)}
-                            className="p-1 hover:text-primary transition-colors"
-                            title="Save to collection"
-                          >
-                            <Star className="w-4 h-4" />
-                          </button>
-                        </>
-                      )}
-                    </div>
-                  </div>
-                  {editingInlinePrompt === prompt.id ? (
-                    <textarea
-                      value={inlineContent}
-                      onChange={(e) => setInlineContent(e.target.value)}
-                      className="text-foreground-secondary mb-4 w-full h-32 bg-background-secondary rounded px-2 py-1 resize-none"
-                    />
-                  ) : (
-                    <p 
-                      className="text-foreground-secondary mb-4 cursor-pointer hover:text-foreground"
-                      onDoubleClick={() => handleInlineEdit(prompt)}
-                    >
-                      {prompt.prompt}
-                    </p>
-                  )}
-                  <div className="flex items-center gap-4 text-foreground-secondary">
-                    <button className="flex items-center gap-1 hover:text-primary">
-                      <Star className="w-4 h-4" />
-                      {prompt.likes}
-                    </button>
-                    <button className="flex items-center gap-1 hover:text-primary">
-                      <MessageCircle className="w-4 h-4" />
-                      {prompt.comments}
-                    </button>
-                    <button className="flex items-center gap-1 hover:text-primary">
-                      <Share2 className="w-4 h-4" />
-                      Share
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </>
-        ) : (
-          // Saved Dumps
-          <div className="space-y-6">
-            {savedDumps.length === 0 ? (
-              <div className="text-center py-12 bg-background-secondary rounded-xl">
-                <p className="text-foreground-secondary">No saved dumps yet</p>
-              </div>
+          <div>
+            <h1 className="text-2xl font-bold">{user?.displayName || 'Anonymous'}</h1>
+            {isEditing ? (
+              <input
+                type="text"
+                value={bio}
+                onChange={(e) => setBio(e.target.value)}
+                className="mt-1 px-2 py-1 bg-background-secondary rounded"
+              />
             ) : (
-              savedDumps.map(dump => (
-                <div key={dump.id}>
-                  <DumpCard dump={dump} />
-                  <button
-                    onClick={() => handleRemoveFromCollection(dump)}
-                    className="p-1 hover:text-red-500 transition-colors"
-                    title="Remove from collection"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                </div>
-              ))
+              <p className="text-foreground-secondary">{bio}</p>
             )}
           </div>
-        )}
+        </div>
+        <div className="flex items-center space-x-2">
+          <button
+            onClick={() => setIsModalOpen(true)}
+            className="flex items-center space-x-2 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors"
+          >
+            <PlusCircle className="w-4 h-4" />
+            <span>New Prompt</span>
+          </button>
+          <button
+            onClick={() => setIsSettingsOpen(true)}
+            className="p-2 hover:bg-background-secondary rounded-lg transition-colors"
+            title="Settings"
+          >
+            <SettingsIcon className="w-5 h-5" />
+          </button>
+        </div>
+      </div>
 
-        {/* Settings Modal */}
-        {isSettingsOpen && (
-          <Settings onClose={() => setIsSettingsOpen(false)} />
-        )}
+      {/* Search and Sort */}
+      <SearchAndSort
+        searchQuery={searchQuery}
+        setSearchQuery={setSearchQuery}
+        sortBy={sortBy}
+        setSortBy={setSortBy}
+        category={category}
+        setCategory={setCategory}
+      />
 
-        {/* Prompt Modal */}
-        {isModalOpen && (
-          <PromptModal
-            isOpen={isModalOpen}
-            onClose={() => {
-              setIsModalOpen(false)
-              setEditingPrompt(null)
-            }}
-            onSave={handleSavePrompt}
-            initialPrompt={editingPrompt}
-          />
+      {/* Tabs */}
+      <div className="flex space-x-4 mb-6 border-b border-border">
+        <button
+          className={`px-4 py-2 font-medium ${
+            activeTab === 'my-dumps'
+              ? 'text-primary border-b-2 border-primary'
+              : 'text-foreground-secondary hover:text-foreground'
+          }`}
+          onClick={() => setActiveTab('my-dumps')}
+        >
+          My Dumps
+        </button>
+        <button
+          className={`px-4 py-2 font-medium ${
+            activeTab === 'saved-dumps'
+              ? 'text-primary border-b-2 border-primary'
+              : 'text-foreground-secondary hover:text-foreground'
+          }`}
+          onClick={() => setActiveTab('saved-dumps')}
+        >
+          Saved
+        </button>
+      </div>
+
+      {/* Prompts Grid */}
+      <div className="grid gap-6">
+        {loading ? (
+          <div className="text-center py-12 bg-background-secondary rounded-lg">
+            <p className="text-foreground-secondary">Loading prompts...</p>
+          </div>
+        ) : error ? (
+          <div className="text-center py-12 bg-background-secondary rounded-lg">
+            <p className="text-red-500">{error}</p>
+          </div>
+        ) : activeTab === 'my-dumps' ? (
+          filteredPrompts.length === 0 ? (
+            <div className="text-center py-12 bg-background-secondary rounded-lg">
+              <p className="text-foreground-secondary">No prompts found</p>
+            </div>
+          ) : (
+            filteredPrompts.map((prompt) => (
+              <DumpCard
+                key={prompt.id}
+                dump={prompt}
+                onDelete={handleDelete}
+                onEdit={handleEdit}
+                isEditable={true}
+              />
+            ))
+          )
+        ) : (
+          savedDumps.length === 0 ? (
+            <div className="text-center py-12 bg-background-secondary rounded-lg">
+              <p className="text-foreground-secondary">No saved prompts yet</p>
+            </div>
+          ) : (
+            savedDumps.map((prompt) => (
+              <DumpCard
+                key={prompt.id}
+                dump={prompt}
+                isEditable={false}
+              />
+            ))
+          )
         )}
       </div>
+
+      {/* Modals */}
+      {isModalOpen && (
+        <PromptModal
+          isOpen={isModalOpen}
+          onClose={() => {
+            setIsModalOpen(false)
+            setEditingPrompt(null)
+          }}
+          onSave={handleSavePrompt}
+          initialPrompt={editingPrompt}
+        />
+      )}
+
+      {isSettingsOpen && (
+        <Settings onClose={() => setIsSettingsOpen(false)} />
+      )}
     </div>
   )
 }
