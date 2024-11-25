@@ -4,6 +4,7 @@ import { useAuth } from '../contexts/AuthContext'
 import { PromptDemo } from '../components/PromptDemo'
 import { Sparkles, Share2 } from 'lucide-react'
 import { PromptModal } from '../components/PromptModal'
+import AuthModal from '../components/AuthModal'
 
 function FeatureCard({ icon, title, description }: { 
   icon: React.ReactNode
@@ -23,6 +24,8 @@ function FeatureCard({ icon, title, description }: {
 
 export function Home() {
   const [isModalOpen, setIsModalOpen] = useState(false)
+  const [showAuthModal, setShowAuthModal] = useState(false)
+  const [showPromptModal, setShowPromptModal] = useState(false)
   const { user } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
@@ -30,6 +33,19 @@ export function Home() {
   const handleSavePrompt = (prompt: { title: string; content: string }) => {
     console.log('Saved prompt:', prompt)
     navigate('/profile')
+  }
+
+  const handleNewPromptClick = () => {
+    if (!user) {
+      setShowAuthModal(true)
+    } else {
+      setShowPromptModal(true)
+    }
+  }
+
+  const handleAuthSuccess = () => {
+    setShowAuthModal(false)
+    setShowPromptModal(true)
   }
 
   return (
@@ -75,6 +91,12 @@ export function Home() {
                     <Share2 className="w-5 h-5 mr-2" />
                     Share Prompt
                   </button>
+                  <button
+                    onClick={handleNewPromptClick}
+                    className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-medium transform transition hover:scale-105 inline-flex items-center"
+                  >
+                    New Prompt
+                  </button>
                 </div>
               </div>
 
@@ -110,6 +132,19 @@ export function Home() {
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         onSave={handleSavePrompt}
+      />
+      
+      {showAuthModal && (
+        <AuthModal
+          isOpen={showAuthModal}
+          onClose={() => setShowAuthModal(false)}
+          onSuccess={handleAuthSuccess}
+        />
+      )}
+
+      <PromptModal
+        isOpen={showPromptModal}
+        onClose={() => setShowPromptModal(false)}
       />
     </main>
   )
