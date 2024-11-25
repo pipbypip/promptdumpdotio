@@ -4,7 +4,7 @@ import { SearchAndSort, type SortOption, type CategoryOption } from '../componen
 import { PromptModal } from '../components/PromptModal'
 import { DumpCard, type Dump } from '../components/DumpCard'
 import { Settings } from '../components/Settings'
-import { getAuth } from 'firebase/auth'
+import { getAuth, getFirestore, doc, updateDoc, collection, addDoc, query, where, orderBy, getDocs, writeBatch } from 'firebase/firestore'
 import { Link } from 'react-router-dom'
 
 interface Prompt {
@@ -50,21 +50,71 @@ export function Profile() {
   const [inlineContent, setInlineContent] = useState('');
   const [deletedPrompts, setDeletedPrompts] = useState<Dump[]>([])
 
-  // Load user dumps from localStorage
+  // Load user prompts from Firebase
   useEffect(() => {
-    if (activeTab === 'my-dumps') {
-      const userDumps = JSON.parse(localStorage.getItem('userDumps') || '[]')
-      setPrompts(userDumps)
-    }
-  }, [activeTab])
+    if (!user) return;
 
-  // Load saved dumps from localStorage
+    const loadPrompts = async () => {
+      try {
+        const db = getFirestore();
+        const promptsRef = collection(db, 'prompts');
+        const q = query(
+          promptsRef,
+          where('author.id', '==', user.uid),
+          orderBy('createdAt', 'desc')
+        );
+
+        const querySnapshot = await getDocs(q);
+        const userPrompts = querySnapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        })) as Dump[];
+
+        setPrompts(userPrompts);
+      } catch (error) {
+        console.error('Error loading prompts:', error);
+      }
+    };
+
+    loadPrompts();
+  }, [user, activeTab]);
+
+  // Load saved prompts from Firebase
   useEffect(() => {
-    if (activeTab === 'saved-dumps') {
-      const savedDumpsFromStorage = JSON.parse(localStorage.getItem('savedDumps') || '[]');
-      setSavedDumps(savedDumpsFromStorage);
-    }
-  }, [activeTab]);
+    if (!user || activeTab !== 'saved-dumps') return;
+
+    const loadSavedPrompts = async () => {
+      try {
+        const db = getFirestore();
+        const savedPromptsRef = collection(db, 'savedPrompts');
+        const q = query(
+          savedPromptsRef,
+          where('userId', '==', user.uid),
+          orderBy('savedAt', 'desc')
+        );
+
+        const querySnapshot = await getDocs(q);
+        const savedPromptIds = querySnapshot.docs.map(doc => doc.data().promptId);
+
+        // Fetch the actual prompts
+        const prompts = await Promise.all(
+          savedPromptIds.map(async (promptId) => {
+            const promptDoc = await getDoc(doc(db, 'prompts', promptId));
+            if (promptDoc.exists()) {
+              return { id: promptDoc.id, ...promptDoc.data() } as Dump;
+            }
+            return null;
+          })
+        );
+
+        setSavedDumps(prompts.filter((p): p is Dump => p !== null));
+      } catch (error) {
+        console.error('Error loading saved prompts:', error);
+      }
+    };
+
+    loadSavedPrompts();
+  }, [user, activeTab]);
 
   // Filter and sort prompts
   const filteredPrompts = useMemo(() => {
@@ -103,44 +153,71 @@ export function Profile() {
   const auth = getAuth()
   const user = auth.currentUser
 
-  const handleSavePrompt = (prompt: { title: string; content: string; type: string }) => {
-    if (editingPrompt) {
-      // Update existing prompt
-      const updatedPrompts = prompts.map(p =>
-        p.id === editingPrompt.id
-          ? {
-              ...p,
-              title: prompt.title,
-              prompt: prompt.content,
-              category: prompt.type as CategoryOption
-            }
-          : p
-      )
-      setPrompts(updatedPrompts)
-      
-      // Update localStorage
-      localStorage.setItem('userDumps', JSON.stringify(updatedPrompts))
-      setEditingPrompt(null)
-    } else {
-      // Create new prompt
-      const newPrompt: Dump = {
-        id: `prompt-${Date.now()}`,
-        title: prompt.title,
-        prompt: prompt.content,
-        author: {
-          name: user?.displayName || 'Anonymous',
-          avatar: user?.photoURL || `https://api.dicebear.com/7.x/pixel-art/svg?seed=${user?.uid || 'anonymous'}`
-        },
-        likes: 0,
-        comments: 0,
-        tags: [],
-        createdAt: new Date().toISOString(),
-        category: prompt.type as CategoryOption
-      }
-      const updatedPrompts = [newPrompt, ...prompts]
-      setPrompts(updatedPrompts)
-      localStorage.setItem('userDumps', JSON.stringify(updatedPrompts))
+  const handleSavePrompt = async (prompt: { title: string; content: string; type: string }) => {
+    if (!user) {
+      console.error('No user found. Please sign in.')
+      return
     }
+
+    try {
+      const db = getFirestore()
+      
+      if (editingPrompt) {
+        // Update existing prompt in Firebase
+        const promptRef = doc(db, 'prompts', editingPrompt.id)
+        await updateDoc(promptRef, {
+          title: prompt.title,
+          prompt: prompt.content,
+          category: prompt.type as CategoryOption,
+          updatedAt: new Date().toISOString()
+        })
+
+        // Update local state
+        const updatedPrompts = prompts.map(p =>
+          p.id === editingPrompt.id
+            ? {
+                ...p,
+                title: prompt.title,
+                prompt: prompt.content,
+                category: prompt.type as CategoryOption
+              }
+            : p
+        )
+        setPrompts(updatedPrompts)
+        setEditingPrompt(null)
+      } else {
+        // Create new prompt in Firebase
+        const promptsRef = collection(db, 'prompts')
+        const newPromptData = {
+          title: prompt.title,
+          prompt: prompt.content,
+          author: {
+            id: user.uid,
+            name: user.displayName || 'Anonymous',
+            avatar: user.photoURL || `https://api.dicebear.com/7.x/pixel-art/svg?seed=${user.uid}`
+          },
+          likes: 0,
+          comments: 0,
+          tags: [],
+          createdAt: new Date().toISOString(),
+          category: prompt.type as CategoryOption,
+          isPublic: true // You might want to make this configurable
+        }
+
+        const docRef = await addDoc(promptsRef, newPromptData)
+        
+        // Update local state
+        const newPrompt: Dump = {
+          id: docRef.id,
+          ...newPromptData
+        }
+        const updatedPrompts = [newPrompt, ...prompts]
+        setPrompts(updatedPrompts)
+      }
+    } catch (error) {
+      console.error('Error saving prompt:', error)
+    }
+    
     setIsModalOpen(false)
   }
 
@@ -181,7 +258,6 @@ export function Profile() {
         : p
     );
     setPrompts(updatedPrompts);
-    localStorage.setItem('userDumps', JSON.stringify(updatedPrompts));
     setEditingInlinePrompt(null);
   };
 
@@ -189,9 +265,12 @@ export function Profile() {
     setPrompts(currentPrompts => currentPrompts.filter(p => p.id !== promptToDelete.id))
     setDeletedPrompts(current => [promptToDelete, ...current])
     
-    // Update localStorage
-    const updatedPrompts = prompts.filter(p => p.id !== promptToDelete.id)
-    localStorage.setItem('userDumps', JSON.stringify(updatedPrompts))
+    // Update Firebase
+    const db = getFirestore();
+    const promptRef = doc(db, 'prompts', promptToDelete.id);
+    updateDoc(promptRef, {
+      isDeleted: true,
+    });
   }
 
   const handleUndo = () => {
@@ -200,11 +279,59 @@ export function Profile() {
       setPrompts(current => [...current, lastDeleted])
       setDeletedPrompts(remainingDeleted)
       
-      // Update localStorage
-      const updatedPrompts = [...prompts, lastDeleted]
-      localStorage.setItem('userDumps', JSON.stringify(updatedPrompts))
+      // Update Firebase
+      const db = getFirestore();
+      const promptRef = doc(db, 'prompts', lastDeleted.id);
+      updateDoc(promptRef, {
+        isDeleted: false,
+      });
     }
   }
+
+  const handleSaveToCollection = async (prompt: Dump) => {
+    if (!user) return;
+
+    try {
+      const db = getFirestore();
+      const savedPromptsRef = collection(db, 'savedPrompts');
+      
+      await addDoc(savedPromptsRef, {
+        userId: user.uid,
+        promptId: prompt.id,
+        savedAt: new Date().toISOString()
+      });
+
+      setSavedDumps(current => [prompt, ...current]);
+    } catch (error) {
+      console.error('Error saving prompt to collection:', error);
+    }
+  };
+
+  const handleRemoveFromCollection = async (prompt: Dump) => {
+    if (!user) return;
+
+    try {
+      const db = getFirestore();
+      const savedPromptsRef = collection(db, 'savedPrompts');
+      const q = query(
+        savedPromptsRef,
+        where('userId', '==', user.uid),
+        where('promptId', '==', prompt.id)
+      );
+
+      const querySnapshot = await getDocs(q);
+      const batch = writeBatch(db);
+      
+      querySnapshot.docs.forEach((doc) => {
+        batch.delete(doc.ref);
+      });
+
+      await batch.commit();
+      setSavedDumps(current => current.filter(p => p.id !== prompt.id));
+    } catch (error) {
+      console.error('Error removing prompt from collection:', error);
+    }
+  };
 
   return (
     <div className="container mx-auto py-8 px-4">
@@ -368,6 +495,13 @@ export function Profile() {
                           >
                             <Trash2 className="w-4 h-4" />
                           </button>
+                          <button
+                            onClick={() => handleSaveToCollection(prompt)}
+                            className="p-1 hover:text-primary transition-colors"
+                            title="Save to collection"
+                          >
+                            <Star className="w-4 h-4" />
+                          </button>
                         </>
                       )}
                     </div>
@@ -413,7 +547,16 @@ export function Profile() {
               </div>
             ) : (
               savedDumps.map(dump => (
-                <DumpCard key={dump.id} dump={dump} />
+                <div key={dump.id}>
+                  <DumpCard dump={dump} />
+                  <button
+                    onClick={() => handleRemoveFromCollection(dump)}
+                    className="p-1 hover:text-red-500 transition-colors"
+                    title="Remove from collection"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
               ))
             )}
           </div>
